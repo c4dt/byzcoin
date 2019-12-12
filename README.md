@@ -32,8 +32,32 @@ To setup a new node, you'll need to do the following steps:
 
 ### Create a local configuration
 
+The local configuration consists of two parts:
+
+1. defining a directory where the node will put all its data files
+2. configuring the node with the port and ip address
+
+For the rest of this document, we suppose that the data-directory is at
+`~/byzcoin`.
+Before configuring the node, make sure that two ports are accessible from the
+public internet. For the rest of this document, we suppose that the following
+two ports are available. 
+If you chose other ports, please adjust them in all commands.
+```text
+7770-7771
+```
+
+```bash
+docker run --rm -ti -p 7770-7771:7770-7771 c4dt/byzcoin:configure
+```
+
+This will request the following information:
+
+
 ### Run and secure the node
+
 ### Send the configuration to DEDIS for inclusion
+
 ### Keep up-to-date with the latest version
 
 ## Technical Details
