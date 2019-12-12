@@ -11,18 +11,20 @@ upstream-update: upstream upstream/cothority upstream/onet
 	( cd upstream/cothority; git pull )
 	( cd upstream/onet; git pull )
 
-build-update:
-	rm -rf build
-	mkdir build
-	for a in $$( cat build.files ); do \
+pkg-clean:
+	rm -rf pkg
+
+pkg-update: pkg-clean
+	mkdir -p pkg
+	for a in $$( cat pkg.files ); do \
 		echo "Copying files $$a"; \
-		d=build/$$( dirname $$a ); \
+		d=pkg/$$( dirname $$a ); \
 		mkdir -p $$d; \
 		cp -a upstream/$$a $$d; \
 	done
-	cp -a build.base/ build
+	cp -a pkg.base/ pkg
 
-update: upstream-update build-update
+update: upstream-update pkg-update
 
 test:
 

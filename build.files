@@ -1,4 +1,0 @@
-onet/*.go
-onet/network
-cothority/byzcoin/*.go
-cothority/personhood/contract*
