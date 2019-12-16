@@ -6,6 +6,7 @@ onet/log
 onet/network
 cothority/go.mod
 cothority/*.go
+cothority/bevm/*.go
 cothority/blscosi/protocol
 cothority/blscosi/bdnproto
 cothority/byzcoin/*.go

@@ -15,15 +15,21 @@
 package main
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
 	"path"
 	"reflect"
-	"time"
+	"regexp"
+	"strings"
 
-	cli "github.com/urfave/cli"
+	"github.com/BurntSushi/toml"
+	"golang.org/x/xerrors"
+
+	"github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3"
 	_ "go.dedis.ch/cothority/v3/byzcoin"
 	_ "go.dedis.ch/cothority/v3/byzcoin/contracts"
@@ -34,7 +40,6 @@ import (
 	"go.dedis.ch/kyber/v3/util/encoding"
 	"go.dedis.ch/kyber/v3/util/key"
 	"go.dedis.ch/onet/v3/app"
-	"go.dedis.ch/onet/v3/cfgpath"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/network"
 )
@@ -50,7 +55,7 @@ var gitTag = ""
 func main() {
 	cliApp := cli.NewApp()
 	cliApp.Name = DefaultName
-	cliApp.Usage = "run a cothority server"
+	cliApp.Usage = "Run a ByzCoin node"
 	if gitTag == "" {
 		cliApp.Version = "unknown"
 	} else {
@@ -60,52 +65,78 @@ func main() {
 
 	cliApp.Commands = []cli.Command{
 		{
-			Name:    "setup",
+			Name:    "server",
 			Aliases: []string{"s"},
-			Usage:   "Setup server configuration (interactive)",
-			Action:  setup,
+			Usage:   "Start server",
+			Action:  runServer,
+			/**
+			  # ADDRESS_NODE should always be tls:// - tcp:// is insecure and should
+			  # not be used.
+			  - ADDRESS_NODE=tls://byzcoin.c4dt.org:7770
+			  # ADDRESS_WS can be either http:// or https:// - for most of the use-cases
+			  # you want this to be https://, so that secure webpages can access the node.
+			  - ADDRESS_WS=https://byzcoin.c4dt.org:7771
+			  # A short description of your node that will be visible to the outside.
+			  - DESCRIPTION="New ByzCoin node"
+			  # Only needed if ADDRESS_WS is https. Ignored if it is http.
+			  - WS_SSL_CHAIN=fullchain.pem
+			  - WS_SSL_KEY=privkey.pem
+			  # ID of the byzcoin to follow - this corresponds to the DEDIS byzcoin.
+			  - BYZCOIN_ID=9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3
+			  # Where the data directory resides inside of the byzcoin container
+			  - DATA_DIR=/byzcoin
+			  # How much debugging output - 0 is none, 1 is important ones, 2 is
+			  # interesting, 3 is detailed, 4 is lots of details, and 5 is too detailed for
+			  # most purposes.
+			  - DEBUG_LVL=2
+			  # Whether to niceify the debug outputs. If you put this to `true`, you should
+			  # have a black background in the terminal.
+			  - DEBUG_COLOR=false
+			  # Send the logging information to the c4dt logger. Optional, can be put to
+			  # "" if not needed.
+			  - GRAYLOG=graylog.c4dt.org:9001
+			  # If set to "true", the binary will only update the configuration files
+			  # and then quit.
+			  - UPDATE_ONLY=false
+
+			*/
 			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name: "address-node, addr-n",
+					Usage: "defines the name:port of the node-to-node" +
+						" communication",
+				},
+				cli.StringFlag{
+					Name: "address-ws, addr-ws",
+					Usage: "defines the name:port of the websocket" +
+						" communication",
+				},
+				cli.StringFlag{
+					Name:  "description, desc",
+					Usage: "a short description of the node, <= 32 chars",
+				},
+				cli.StringFlag{
+					Name:  "ws-ssl-chain, wsc",
+					Usage: "the fullchain.pem file for the websocket port",
+				},
+				cli.StringFlag{
+					Name:  "ws-ssl-private, wsp",
+					Usage: "the privkey.pem file for the websocket port",
+				},
+				cli.StringFlag{
+					Name: "byzcoin-id, bcid",
+					Usage: "the hex representation of the byzcoin-id to" +
+						" connect to",
+				},
+				cli.StringFlag{
+					Name:  "data-dir, dd",
+					Usage: "where the configuration files should be stored",
+					Value: "./bc-data",
+				},
 				cli.BoolFlag{
-					Name:  "non-interactive",
-					Usage: "generate private.toml in non-interactive mode",
-				},
-				cli.StringFlag{
-					Name:  "host",
-					Usage: "which host to listen on",
-					Value: "",
-				},
-				cli.IntFlag{
-					Name:  "port",
-					Usage: "which port to listen on",
-					Value: 6879,
-				},
-				cli.StringFlag{
-					Name:  "description",
-					Usage: "the description to use",
-					Value: "configured in non-interactive mode",
-				},
-			},
-		},
-		{
-			Name:   "server",
-			Usage:  "Start cothority server",
-			Action: runServer,
-		},
-		{
-			Name:      "check",
-			Aliases:   []string{"c"},
-			Usage:     "Check if the servers in the group definition are up and running",
-			ArgsUsage: "Cothority group definition file",
-			Action:    checkConfig,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "g",
-					Usage: "Cothority group definition file",
-				},
-				cli.IntFlag{
-					Name:  "timeout, t",
-					Value: 10,
-					Usage: "Set a different timeout in seconds",
+					Name: "update-only, uo",
+					Usage: "if true, will only update the ." +
+						"toml files and then quit",
 				},
 			},
 		},
@@ -115,11 +146,6 @@ func main() {
 			Name:  "debug, d",
 			Value: 0,
 			Usage: "debug-level: 1 for terse, 5 for maximal",
-		},
-		cli.StringFlag{
-			Name:  "config, c",
-			Value: path.Join(cfgpath.GetConfigPath(DefaultName), app.DefaultServerConfig),
-			Usage: "Configuration file of the server",
 		},
 	}
 	cliApp.Before = func(c *cli.Context) error {
@@ -141,76 +167,89 @@ func main() {
 	log.ErrFatal(err)
 }
 
-// raiseFdLimit is a callback that is only set in the context where it is needed:
-//  * when conode.go is used alone by ../libtest.sh, not needed
-//  * when conode is build on windows, not needed
-//  * when conode is build on unix, fd_unix.go sets it
-var raiseFdLimit func()
-
-func runServer(ctx *cli.Context) error {
-	// first check the options
-	config := ctx.GlobalString("config")
-	if raiseFdLimit != nil {
-		raiseFdLimit()
-	}
-	app.RunServer(config)
-	return nil
-}
-
-// checkConfig contacts all servers and verifies if it receives a valid
-// signature from each.
-func checkConfig(c *cli.Context) error {
-	tomlFileName := c.String("g")
-	if c.NArg() > 0 {
-		tomlFileName = c.Args().First()
-	}
-	if tomlFileName == "" {
-		log.Fatal("[-] Must give the roster file to check.")
-	}
-
-	f, err := os.Open(tomlFileName)
-	if err != nil {
-		return err
-	}
-
-	client := status.NewClient()
-
-	grp, err := app.ReadGroupDescToml(f)
-	if err != nil {
-		return err
-	}
-
-	ro := grp.Roster
-	replies := make(chan *status.Response)
-	errs := make(chan error)
-
-	// send a status request to everyone
-	for _, si := range ro.List {
-		go func(srvid *network.ServerIdentity) {
-			reply, err := client.Request(srvid)
-			if err != nil {
-				errs <- err
-			} else {
-				replies <- reply
-			}
-		}(si)
-	}
-
-	counter := 0
-	timeout := time.After(time.Duration(c.Int("timeout")) * time.Second)
-
-	// ... and wait for the responses
-	for counter < len(ro.List) {
-		select {
-		case <-replies:
-			counter++
-		case err := <-errs:
-			return err
-		case <-timeout:
-			return errors.New("didn't get all the responses in time")
+func runServer(c *cli.Context) error {
+	conf := &app.CothorityConfig{Suite: cothority.Suite.String()}
+	dd := c.String("data-dir")
+	fn := path.Join(dd, "private.toml")
+	if ccFile, err := ioutil.ReadFile(fn); err == nil {
+		log.Info("Loading configuration from private.toml")
+		_, err = toml.Decode(string(ccFile), conf)
+		if err != nil {
+			return xerrors.Errorf("couldn't parse private.toml: %+v", err)
 		}
+	} else {
+		log.Info("Creating keypair")
+		kp := key.NewKeyPair(cothority.Suite)
+		conf.Public, err = encoding.PointToStringHex(cothority.Suite, kp.Public)
+		if err != nil {
+			return xerrors.Errorf("couldn't get public buffer: %+v", err)
+		}
+		conf.Private, err = encoding.ScalarToStringHex(cothority.Suite, kp.Private)
+		if err != nil {
+			return xerrors.Errorf("couldn't get private buffer: %+v", err)
+		}
+		conf.Services = app.GenerateServiceKeyPairs()
+		conf.Description = "New ByzCoin node"
 	}
 
+	if node := c.String("address-node"); node != "" {
+		if !strings.HasPrefix(node, "tls://") {
+			return xerrors.New("node address must start with tls://")
+		}
+		conf.Address = network.Address(node)
+	}
+
+	if node := c.String("address-ws"); node != "" {
+		if http, _ := regexp.MatchString("https?://", node); !http {
+			return xerrors.New("websocket address must start with https:// or" +
+				" http://")
+		}
+		conf.URL = node
+	}
+
+	if desc := c.String("description"); desc != "" {
+		if len(desc) > 32 {
+			return xerrors.New("description length cannot be longer than 32")
+		}
+		conf.Description = desc
+	}
+
+	if wsc := c.String("ws-ssl-chain"); wsc != "" {
+		if _, err := os.Stat(path.Join(dd, wsc)); err != nil {
+			return xerrors.Errorf("error with ws-ssl-chain file: %+v", err)
+		}
+		conf.WebSocketTLSCertificate = app.CertificateURL(wsc)
+	}
+
+	if wsp := c.String("ws-ssl-private"); wsp != "" {
+		if _, err := os.Stat(path.Join(dd, wsp)); err != nil {
+			return xerrors.Errorf("error with ws-ssl-private file: %+v", err)
+		}
+		conf.WebSocketTLSCertificateKey = app.CertificateURL(wsp)
+	}
+
+	err := os.Mkdir(dd, 0770)
+	if err != nil {
+		return xerrors.Errorf("couldn't create config directory: %+v", err)
+	}
+	err = conf.Save(path.Join(dd, "private.toml"))
+	if err != nil {
+		return xerrors.Errorf("couldn't store private.toml: %+v", err)
+	}
+
+	if c.Bool("update-only") {
+		log.Info("Quitting after update of configuration file")
+		return nil
+	}
+
+	if bcIDStr := c.String("byzcoin-id"); bcIDStr != "" {
+		bcID, err := hex.DecodeString(bcIDStr)
+		if err != nil {
+			return xerrors.Errorf("couldn't parse bcID: %+v", err)
+		}
+		// TODO: secure node to only accept this id
+		log.Infof("Got BC-ID: %x", bcID)
+	}
 	return nil
 }
 

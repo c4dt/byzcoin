@@ -1,90 +1,120 @@
-# Byzcoin server
+# Byzcoin node
 
-This directory is a copy of the code found in 
-https://github.com/dedis/cothority 
-with the goal to make it small enough to be code-reviewable.
-The flow for code in this directory should always be:
+Byzcoin is a high-performance permissioned blockchain that can safely run in 
+public mode, meaning everybody with access tokens can use it.
+It is developed by the [DEDIS](https://dedis.epfl.ch) lab at 
+[EPFL](https://epfl.ch) and supported by the [C4DT](https://c4dt.org).
+Novel parts of the byzcoin blockchain are the 
+[DARC](https://github.com/dedis/cothority/tree/master/darc) structures that 
+allow delegation of access control and decentralized management.
+Another new part is 
+[Calypso](https://github.com/dedis/cothority/tree/master/calypso)
+which allows to encrypt to a set of servers and define access control to 
+users who will be able to decrypt the data. 
 
-```
-dedis/cothority/byzcoin + patches ->
-c4dt/byzcoin
-```
-
-The only binary in this directory is the server itself. For all other 
-binaries used normally in byzcoin production, like `bcadmin`, `scmgr`, and 
-others, please install them from the `dedis/cothority` directory.
+In this README you will find a short explanation how you can get a node up 
+and running to join the DEDIS byzcoin [test-net](https://status.dedis.ch).
+For a more technical description, see one of:
+- [Why this repository](TECHNICAL.md)
+- [Collective Authority Project](https://github.com/dedis/cothority)
+- [ByzCoin Paper](https://eprint.iacr.org/2017/406.pdf)
 
 ## Running your node
 
 To run a byzcoin node, you need a server with 2GB of RAM, 10GB of harddisk, 
 and a CPU not older than 5 years. 
-You can run the node either using docker, or start the binary directly.
-Here is the setup to do in order to follow the DEDIS byzcoin instance.
-For setting up your own instance, please have a look at
-https://github.com/dedis/cothority/tree/master/conode
+The simplest way to run your node is using docker.
+If you want to compile from source, or use the binary, please have a look at 
+[more setups](SOURCE.md).
 
 To setup a new node, you'll need to do the following steps:
 
-1. Create a local configuration
-2. Run and secure the node
+1. Configure your node
+2. Run it and secure the server
 3. Send the configuration to DEDIS for inclusion
 4. Keep up-to-date with the latest version
 
-### Create a local configuration
+## Configuring your node
 
-The local configuration consists of two parts:
-
-1. defining a directory where the node will put all its data files
-2. configuring the node with the port and ip address
-
-For the rest of this document, we suppose that the data-directory is at
-`~/byzcoin`.
-Before configuring the node, make sure that two ports are accessible from the
-public internet. For the rest of this document, we suppose that the following
-two ports are available. 
-If you chose other ports, please adjust them in all commands.
-```text
-7770-7771
-```
+The simplest way of making your local configuration is to use the 
+docker-compose file found in the root-directory of the byzcoin repository. 
+In it you find the following variables:
 
 ```bash
-docker run --rm -ti -p 7770-7771:7770-7771 c4dt/byzcoin:configure
+# ADDRESS_NODE should always be tls:// - tcp:// is insecure and should
+# not be used.
+- ADDRESS_NODE=tls://byzcoin.c4dt.org:7770
+# ADDRESS_WS can be either http:// or https:// - for most of the use-cases
+# you want this to be https://, so that secure webpages can access the node.
+- ADDRESS_WS=https://byzcoin.c4dt.org:7771
+# A short description of your node that will be visible to the outside.
+- DESCRIPTION="New ByzCoin node"
+# Only needed if ADDRESS_WS is https. Ignored if it is http. 
+- WS_SSL_CHAIN=fullchain.pem
+- WS_SSL_KEY=privkey.pem
+# ID of the byzcoin to follow - this corresponds to the DEDIS byzcoin.
+- BYZCOIN_ID=9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3
 ```
 
-This will request the following information:
+The following variables are OK as default and can be changed if needed:
+```bash
+# How much debugging output - 0 is none, 1 is important ones, 2 is 
+# interesting, 3 is detailed, 4 is lots of details, and 5 is too detailed for
+# most purposes.
+- DEBUG_LVL=2
+# Whether to niceify the debug outputs. If you put this to `true`, you should
+# have a black background in the terminal.
+- DEBUG_COLOR=false
+# Send the logging information to the c4dt logger. Optional, can be put to
+# "" if not needed.
+- GRAYLOG=graylog.c4dt.org:9001
+```
 
+Update it with the address of your node, and eventually copy the SSL-files
+to the `~/byzcoin` directory. 
+The example for the ssl-files is given for letsencrypt files.
 
-### Run and secure the node
+## Starting your node
 
-### Send the configuration to DEDIS for inclusion
+Starting the node for the first time is done like this:
 
-### Keep up-to-date with the latest version
+```bash
+docker-compose up
+```
 
-## Technical Details
+This should start the node and print some debugging information.
+If something goes wrong, an error should be printed.
+For more information about the error, 
+Once the node is up and running, you can check it with:
 
-For those familiar with the cothority/onet project, here some technical 
-details of what is in this repository.
-This information is also useful as a starting point for a code review.
+```bash
+go build go.dedis.ch/cothority/v3/status
+status --host https://byzcoin.c4dt.org
+```
 
-### Services
+To get your node included in the DEDIS network, you need to sign the 
+DEDIS_BYZCOIN.md file and send it, together with `~/byzcoin/public.toml` to 
+[byzcoin@groupes.epfl.ch](mailto:byzcoin@groupes.epfl.ch).
 
-The cothority project uses onet for services available to the outside.
-Byzcoin needs at least the following services:
+Once it's running, start it in the background with:
 
-- skipchain - to handle the underlying consensus protocol
-- byzcoin - the actual transaction and global state part
+```bash
+docker-compose up -d
+```
 
-For convenience, the following service is also added:
+## Running your node from crontab
 
-- status - return information about the node
+Once your node is up and running, you can get it started automatically from 
+your crontab. Add the following line:
 
-### Ports
+```bash
+@reboot docker-compose restart
+```
 
-A byzcoin node needs two ports, and both should be exposed to the internet.
-The standard port-numbers are 7770 and 7771, but other port numbers can be 
-chosen.
+## Updating your node
 
-- node-2-node communication: this uses a proprietary protocol where 
-protobuf-messages are sent over a plain TCP or TLS connection
-- node-2-client communication: also a proprietary protocol with protobuf-
-messages over a websocket connection
+To update the node, type the following:
+
+```bash
+docker-compose up --build
+```
