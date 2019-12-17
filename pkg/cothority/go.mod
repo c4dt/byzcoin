@@ -33,3 +33,5 @@ require (
 )
 
 go 1.13
+
+replace go.dedis.ch/onet/v3 => ../onet

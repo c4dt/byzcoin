@@ -17,14 +17,14 @@ package main
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"io/ioutil"
-	"net"
 	"os"
 	"path"
 	"reflect"
 	"regexp"
 	"strings"
+
+	"go.dedis.ch/cothority/v3/skipchain"
 
 	"github.com/BurntSushi/toml"
 	"golang.org/x/xerrors"
@@ -65,41 +65,10 @@ func main() {
 
 	cliApp.Commands = []cli.Command{
 		{
-			Name:    "server",
+			Name:    "config",
 			Aliases: []string{"s"},
-			Usage:   "Start server",
-			Action:  runServer,
-			/**
-			  # ADDRESS_NODE should always be tls:// - tcp:// is insecure and should
-			  # not be used.
-			  - ADDRESS_NODE=tls://byzcoin.c4dt.org:7770
-			  # ADDRESS_WS can be either http:// or https:// - for most of the use-cases
-			  # you want this to be https://, so that secure webpages can access the node.
-			  - ADDRESS_WS=https://byzcoin.c4dt.org:7771
-			  # A short description of your node that will be visible to the outside.
-			  - DESCRIPTION="New ByzCoin node"
-			  # Only needed if ADDRESS_WS is https. Ignored if it is http.
-			  - WS_SSL_CHAIN=fullchain.pem
-			  - WS_SSL_KEY=privkey.pem
-			  # ID of the byzcoin to follow - this corresponds to the DEDIS byzcoin.
-			  - BYZCOIN_ID=9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3
-			  # Where the data directory resides inside of the byzcoin container
-			  - DATA_DIR=/byzcoin
-			  # How much debugging output - 0 is none, 1 is important ones, 2 is
-			  # interesting, 3 is detailed, 4 is lots of details, and 5 is too detailed for
-			  # most purposes.
-			  - DEBUG_LVL=2
-			  # Whether to niceify the debug outputs. If you put this to `true`, you should
-			  # have a black background in the terminal.
-			  - DEBUG_COLOR=false
-			  # Send the logging information to the c4dt logger. Optional, can be put to
-			  # "" if not needed.
-			  - GRAYLOG=graylog.c4dt.org:9001
-			  # If set to "true", the binary will only update the configuration files
-			  # and then quit.
-			  - UPDATE_ONLY=false
-
-			*/
+			Usage:   "Create configuration",
+			Action:  configure,
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name: "address-node, addr-n",
@@ -120,7 +89,7 @@ func main() {
 					Usage: "the fullchain.pem file for the websocket port",
 				},
 				cli.StringFlag{
-					Name:  "ws-ssl-private, wsp",
+					Name:  "ws-ssl-key, wsk",
 					Usage: "the privkey.pem file for the websocket port",
 				},
 				cli.StringFlag{
@@ -133,12 +102,14 @@ func main() {
 					Usage: "where the configuration files should be stored",
 					Value: "./bc-data",
 				},
-				cli.BoolFlag{
-					Name: "update-only, uo",
-					Usage: "if true, will only update the ." +
-						"toml files and then quit",
-				},
 			},
+		},
+		{
+			Name:      "show",
+			Aliases:   []string{"s"},
+			Usage:     "Show configuration",
+			Action:    showConfig,
+			ArgsUsage: "data-dir",
 		},
 	}
 	cliApp.Flags = []cli.Flag{
@@ -167,7 +138,7 @@ func main() {
 	log.ErrFatal(err)
 }
 
-func runServer(c *cli.Context) error {
+func configure(c *cli.Context) error {
 	conf := &app.CothorityConfig{Suite: cothority.Suite.String()}
 	dd := c.String("data-dir")
 	fn := path.Join(dd, "private.toml")
@@ -215,31 +186,42 @@ func runServer(c *cli.Context) error {
 	}
 
 	if wsc := c.String("ws-ssl-chain"); wsc != "" {
-		if _, err := os.Stat(path.Join(dd, wsc)); err != nil {
+		if _, err := os.Stat(wsc); err != nil {
 			return xerrors.Errorf("error with ws-ssl-chain file: %+v", err)
 		}
 		conf.WebSocketTLSCertificate = app.CertificateURL(wsc)
 	}
 
-	if wsp := c.String("ws-ssl-private"); wsp != "" {
-		if _, err := os.Stat(path.Join(dd, wsp)); err != nil {
-			return xerrors.Errorf("error with ws-ssl-private file: %+v", err)
+	if wsk := c.String("ws-ssl-key"); wsk != "" {
+		if _, err := os.Stat(wsk); err != nil {
+			return xerrors.Errorf("error with ws-ssl-key file: %+v", err)
 		}
-		conf.WebSocketTLSCertificateKey = app.CertificateURL(wsp)
+		conf.WebSocketTLSCertificateKey = app.CertificateURL(wsk)
 	}
 
-	err := os.Mkdir(dd, 0770)
-	if err != nil {
-		return xerrors.Errorf("couldn't create config directory: %+v", err)
-	}
-	err = conf.Save(path.Join(dd, "private.toml"))
+	err := conf.Save(path.Join(dd, "private.toml"))
 	if err != nil {
 		return xerrors.Errorf("couldn't store private.toml: %+v", err)
 	}
 
-	if c.Bool("update-only") {
-		log.Info("Quitting after update of configuration file")
-		return nil
+	siToml := &app.ServerToml{
+		Address:     conf.Address,
+		Suite:       conf.Suite,
+		Public:      conf.Public,
+		Description: conf.Description,
+		Services:    make(map[string]app.ServerServiceConfig),
+		URL:         conf.URL,
+	}
+	for name, serviceConfig := range conf.Services {
+		siToml.Services[name] = app.ServerServiceConfig{
+			Suite:  serviceConfig.Suite,
+			Public: serviceConfig.Public,
+		}
+	}
+
+	if err := ioutil.WriteFile(path.Join(dd, "public.toml"),
+		[]byte(siToml.String()), 0644); err != nil {
+		return xerrors.Errorf("couldn't write public.toml: %+v", err)
 	}
 
 	if bcIDStr := c.String("byzcoin-id"); bcIDStr != "" {
@@ -247,55 +229,51 @@ func runServer(c *cli.Context) error {
 		if err != nil {
 			return xerrors.Errorf("couldn't parse bcID: %+v", err)
 		}
-		// TODO: secure node to only accept this id
-		log.Infof("Got BC-ID: %x", bcID)
+
+		_, server, err := app.ParseCothority(path.Join(dd, "private.toml"))
+		if err != nil {
+			return xerrors.Errorf("couldn't load config: %+v", err)
+		}
+		go server.Start()
+		server.WaitStartup()
+
+		ss := server.Service(skipchain.ServiceName).(*skipchain.Service)
+		ss.Storage.FollowIDs = []skipchain.SkipBlockID{bcID}
+		// Abusing AddClientKey to call ss.save(), which is a private method.
+		kp := key.NewKeyPair(cothority.Suite)
+		ss.AddClientKey(kp.Public)
+
+		if err = server.Stop(); err != nil {
+			return xerrors.Errorf("couldn't stop server: %+v", err)
+		}
 	}
+
 	return nil
 }
 
-func setup(c *cli.Context) error {
-	if c.Bool("non-interactive") {
-		host := c.String("host")
-		port := c.Int("port")
-		portStr := fmt.Sprintf("%v", port)
-
-		serverBinding := network.NewAddress(network.TLS, net.JoinHostPort(host, portStr))
-		kp := key.NewKeyPair(cothority.Suite)
-
-		pub, _ := encoding.PointToStringHex(cothority.Suite, kp.Public)
-		priv, _ := encoding.ScalarToStringHex(cothority.Suite, kp.Private)
-
-		conf := &app.CothorityConfig{
-			Suite:       cothority.Suite.String(),
-			Public:      pub,
-			Private:     priv,
-			Address:     serverBinding,
-			Description: c.String("description"),
-			Services:    app.GenerateServiceKeyPairs(),
-		}
-
-		out := c.GlobalString("config")
-		err := conf.Save(out)
-		if err == nil {
-			fmt.Fprintf(os.Stderr, "Wrote config file to %v\n", out)
-		}
-
-		// We are not going to write out the public.toml file here.
-		// We don't because in the current use case for --non-interactive, which
-		// is for containers to auto-generate configs on startup, the
-		// roster (i.e. public IP addresses + public keys) will be generated
-		// based on how Kubernetes does service discovery. Writing the public.toml
-		// file based on the data we have here, would result in writing an invalid
-		// public Address.
-
-		// If we had written it, it would look like this:
-		//  server := app.NewServerToml(cothority.Suite, kp.Public, conf.Address, conf.Description)
-		//  group := app.NewGroupToml(server)
-		//  group.Save(path.Join(dir, "public.toml"))
-
-		return err
+func showConfig(c *cli.Context) error {
+	if c.NArg() != 1 {
+		return xerrors.New("Please give data-dir")
 	}
 
-	app.InteractiveConfig(cothority.Suite, DefaultName)
+	_, server, err := app.ParseCothority(path.Join(c.Args().First(), "private.toml"))
+	if err != nil {
+		return xerrors.Errorf("couldn't load config: %+v", err)
+	}
+	go server.Start()
+	server.WaitStartup()
+
+	ss := server.Service(skipchain.ServiceName).(*skipchain.Service)
+	if len(ss.Storage.FollowIDs) == 0 {
+		log.Info("No IDs followed")
+	}
+	for _, id := range ss.Storage.FollowIDs {
+		log.Infof("Following ID: %x", id)
+	}
+
+	if err = server.Stop(); err != nil {
+		return xerrors.Errorf("couldn't stop server: %+v", err)
+	}
+
 	return nil
 }

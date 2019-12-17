@@ -27,9 +27,6 @@ byzcoin:
     # Send the logging information to the c4dt logger. Optional, can be put to
     # "" if not needed.
     - GRAYLOG=graylog.c4dt.org:9001
-    # If set to "true", the binary will only update the configuration files
-    # and then quit.
-    - UPDATE_ONLY=false
   ports:
     - "7770-7771:7770-7771"
   image: c4dt/byzcoin:latest

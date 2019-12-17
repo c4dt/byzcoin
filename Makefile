@@ -23,10 +23,12 @@ pkg-update: pkg-clean
 		cp -a upstream/$$a $$d; \
 	done
 	cp -a pkg.base/ pkg
+	echo "replace go.dedis.ch/onet/v3 => ../onet" >> pkg/cothority/go.mod
 
 update: upstream-update pkg-update
 
-test:
+test: update
+	cd cmd/byzcoin && ./test.sh -b
 
 docker: docker-base docker-configure docker-byzcoin
 
