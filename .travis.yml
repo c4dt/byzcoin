@@ -1,0 +1,32 @@
+_: &language_go_1_13
+  name: "go 1.13"
+  language: go
+  go: "1.13.x"
+
+dist: trusty
+
+stages:
+  - test
+
+jobs:
+  include:
+    - stage: test
+      <<: *language_go_1_13
+      script: >-
+        cd cmd/byzcoin &&
+        ./test.sh
+    - name: "replay blocks"
+      <<: *language_go_1_13
+      script:
+        - # wget https://conode.c4dt.org/files/cached.db
+        - ( cd ..; go get go.dedis.ch/cothority/v3/byzcoin/bcadmin )
+        - ../bcadmin --help
+
+notifications:
+  email: false
+
+cache:
+  directories:
+    - $HOME/.m2
+    - $HOME/.cache/go-build
+    - $GOPATH/pkg/mod
