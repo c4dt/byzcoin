@@ -1,10 +1,10 @@
-onet/go.mod
+onet/go.*
 onet/*.go
 onet/app
 onet/cfgpath
 onet/log
 onet/network
-cothority/go.mod
+cothority/go.*
 cothority/*.go
 cothority/bevm/*.{go,md}
 cothority/blscosi/protocol
