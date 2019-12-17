@@ -3,6 +3,7 @@ IMAGE_NAME = c4dt/$(CONTAINER)
 VERSION = $(shell git -C upstream/cothority tag | sort | tail -n 1 )
 TAG = $(VERSION)-$(shell date +%y%m%d)
 DOCKER_NAME = $(IMAGE_NAME)
+DOW = $(shell date +%a)
 
 # -s -w are for smaller binaries
 # -X compiles the git tag into the binary
@@ -49,4 +50,9 @@ docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
 
 docker: docker/built
 	docker build -t $(DOCKER_NAME):$(TAG) docker
+	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):$(DOW)
 	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):latest
+
+docker-push: docker
+	docker push $(DOCKER_NAME):latest
+	docker push $(DOCKER_NAME):$(DOW)
