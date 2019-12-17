@@ -6,5 +6,6 @@ RUN mkdir -p .local/share .config
 RUN ln -s /byzcoin .local/share/conode
 RUN ln -s /byzcoin .config/conode
 COPY byzcoin byzcoin.sh /root/
+LABEL com.centurylinklabs.watchtower.enable="true"
 
 CMD ["./byzcoin.sh"]

@@ -34,7 +34,7 @@ import (
 	_ "go.dedis.ch/cothority/v3/byzcoin"
 	_ "go.dedis.ch/cothority/v3/byzcoin/contracts"
 	_ "go.dedis.ch/cothority/v3/calypso"
-	_ "go.dedis.ch/cothority/v3/personhood"
+	_ "go.dedis.ch/cothority/v3/personhood/contracts"
 	_ "go.dedis.ch/cothority/v3/skipchain"
 	status "go.dedis.ch/cothority/v3/status/service"
 	"go.dedis.ch/kyber/v3/util/encoding"

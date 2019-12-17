@@ -17,7 +17,8 @@ export -n BC_CONFIG
 export -n BC
 export BC_WAIT=true
 
-. "../../upstream/cothority/libtest.sh"
+root=../../upstream/cothority
+. "./libtest.sh"
 
 main(){
   startTest

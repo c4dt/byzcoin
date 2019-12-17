@@ -34,3 +34,8 @@ services:
       # Where the byzcoin data resides on the host. Do not change the :/byzcoin
       # part, only the ~/byzcoin.
       - ~/byzcoin:/byzcoin
+  watchtower:
+    image: v2tec/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30 --label-enable
