@@ -1,34 +1,36 @@
 version: "3.7"
 
-byzcoin:
-  environment:
-    # ADDRESS_NODE should always be tls:// - tcp:// is insecure and should
-    # not be used.
-    - ADDRESS_NODE=tls://byzcoin.c4dt.org:7770
-    # ADDRESS_WS can be either http:// or https:// - for most of the use-cases
-    # you want this to be https://, so that secure webpages can access the node.
-    - ADDRESS_WS=https://byzcoin.c4dt.org:7771
-    # A short description of your node that will be visible to the outside.
-    - DESCRIPTION="New ByzCoin node"
-    # Only needed if ADDRESS_WS is https. Ignored if it is http.
-    - WS_SSL_CHAIN=fullchain.pem
-    - WS_SSL_KEY=privkey.pem
-    # ID of the byzcoin to follow - this corresponds to the DEDIS byzcoin.
-    - BYZCOIN_ID=9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3
-    # Where the data directory resides inside of the byzcoin container
-    - DATA_DIR=/byzcoin
-    # How much debugging output - 0 is none, 1 is important ones, 2 is
-    # interesting, 3 is detailed, 4 is lots of details, and 5 is too detailed for
-    # most purposes.
-    - DEBUG_LVL=2
-    # Whether to niceify the debug outputs. If you put this to `true`, you should
-    # have a black background in the terminal.
-    - DEBUG_COLOR=false
-    # Send the logging information to the c4dt logger. Optional, can be put to
-    # "" if not needed.
-    - GRAYLOG=graylog.c4dt.org:9001
-  ports:
-    - "7770-7771:7770-7771"
-  image: c4dt/byzcoin:latest
-  volumes:
-    - ~/byzcoin:/byzcoin
+services:
+  byzcoin:
+    environment:
+      # ADDRESS_NODE should always be tls:// - tcp:// is insecure and should
+      # not be used.
+      - ADDRESS_NODE=tls://byzcoin.c4dt.org:7770
+      # ADDRESS_WS can be either http:// or https:// - for most of the use-cases
+      # you want this to be https://, so that secure webpages can access the node.
+      - ADDRESS_WS=http://byzcoin.c4dt.org:7771
+      # A short description of your node that will be visible to the outside.
+      - DESCRIPTION="New ByzCoin node"
+      # Only needed if ADDRESS_WS is https. Ignored if it is http. These files
+      # need to be in the ~/byzcoin directory before the node is started.
+      - WS_SSL_CHAIN=fullchain.pem
+      - WS_SSL_KEY=privkey.pem
+      # ID of the byzcoin to follow - this corresponds to the DEDIS byzcoin.
+      - BYZCOIN_ID=9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3
+      # How much debugging output - 0 is none, 1 is important ones, 2 is
+      # interesting, 3 is detailed, 4 is lots of details, and 5 is too detailed for
+      # most purposes.
+      - DEBUG_LVL=2
+      # Whether to niceify the debug outputs. If you put this to `true`, you should
+      # have a black background in the terminal.
+      - DEBUG_COLOR=false
+      # Send the logging information to the c4dt logger. Optional, can be put to
+      # "" if not needed.
+      - GRAYLOG=graylog.c4dt.org:9001
+    ports:
+      - "7770-7771:7770-7771"
+    image: c4dt/byzcoin:latest
+    volumes:
+      # Where the byzcoin data resides on the host. Do not change the :/byzcoin
+      # part, only the ~/byzcoin.
+      - ~/byzcoin:/byzcoin

@@ -30,9 +30,9 @@ If you want to compile from source, or use the binary, please have a look at
 To setup a new node, you'll need to do the following steps:
 
 1. Configure your node
-2. Run it and secure the server
-3. Send the configuration to DEDIS for inclusion
-4. Keep up-to-date with the latest version
+2. Starting your node
+3. Sign up for the DEDIS network
+4. Updating your node
 
 ## Configuring your node
 
@@ -82,24 +82,33 @@ Starting the node for the first time is done like this:
 docker-compose up
 ```
 
-This should start the node and print some debugging information.
-If something goes wrong, an error should be printed.
-For more information about the error, 
+This starts the node and prints some debugging information.
+If something goes wrong, an error is printed. 
 Once the node is up and running, you can check it with:
 
 ```bash
 go build go.dedis.ch/cothority/v3/status
-status --host https://byzcoin.c4dt.org
+status --host http://localhost:7771
 ```
-
-To get your node included in the DEDIS network, you need to sign the 
-DEDIS_BYZCOIN.md file and send it, together with `~/byzcoin/public.toml` to 
-[byzcoin@groupes.epfl.ch](mailto:byzcoin@groupes.epfl.ch).
 
 Once it's running, start it in the background with:
 
 ```bash
 docker-compose up -d
+```
+
+## Sign up for the DEDIS network
+
+To get your node included in the DEDIS network, you need to sign the 
+DEDIS_BYZCOIN.md file and send it, together with `~/byzcoin/public.toml` to 
+[byzcoin@groupes.epfl.ch](mailto:byzcoin@groupes.epfl.ch).
+
+## Updating your node
+
+To update the node, type the following:
+
+```bash
+docker-compose up --build
 ```
 
 ## Running your node from crontab
@@ -111,10 +120,3 @@ your crontab. Add the following line:
 @reboot docker-compose restart
 ```
 
-## Updating your node
-
-To update the node, type the following:
-
-```bash
-docker-compose up --build
-```

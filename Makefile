@@ -1,3 +1,13 @@
+CONTAINER = byzcoin
+IMAGE_NAME = c4dt/$(CONTAINER)
+VERSION = $(shell git -C upstream/cothority tag | sort | tail -n 1 )
+TAG = $(VERSION)-$(shell date +%y%m%d)
+DOCKER_NAME = $(IMAGE_NAME)
+
+# -s -w are for smaller binaries
+# -X compiles the git tag into the binary
+ldflags=-s -w -X main.gitTag=c4dt-$(TAG)
+
 upstream:
 	mkdir upstream
 
@@ -27,10 +37,16 @@ pkg-update: pkg-clean
 
 update: upstream-update pkg-update
 
-test: update
+test:
 	cd cmd/byzcoin && ./test.sh -b
 
-docker: docker-base docker-configure docker-byzcoin
+docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
+	GO111MODULE=on GOOS=linux GOARCH=amd64 \
+		go build -ldflags="$(ldflags)" -o $@ ./cmd/byzcoin
 
-docker-base: docker/Dockerfile-base
-	docker build
+docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
+	touch docker/built
+
+docker: docker/built
+	docker build -t $(DOCKER_NAME):$(TAG) docker
+	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):latest
