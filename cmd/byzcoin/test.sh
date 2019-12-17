@@ -86,7 +86,8 @@ setupVars(){
   export UPDATE_ONLY=true
   rm -rf "$DATA_DIR"
   mkdir "$DATA_DIR"
-  openssl req -x509 -newkey rsa:1024 -nodes -subj "/CN=localhost" \
+  # DO NOT USE THIS IN PRODUCTION - 512 bits is only for testing!
+  openssl req -x509 -newkey rsa:512 -nodes -subj "/CN=localhost" \
     -keyout "$WS_SSL_KEY" -out "$WS_SSL_CHAIN" -days 1
 }
 
