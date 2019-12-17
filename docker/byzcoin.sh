@@ -16,7 +16,10 @@ if [[ $ADDRESS_WS == https* ]]; then
     ssl="--ws-ssl-chain $WS_CHAIN \
         --ws-ssl-key $WS_KEY"
 fi
+
+echo "Configuring ByzCoin"
 ./byzcoin config --address-node "$ADDRESS_NODE" \
     --address-ws "$ADDRESS_WS" --desc "$DESCRIPTION" \
     --byzcoin-id "$BYZCOIN_ID" --data-dir /byzcoin $ssl
+echo "Starting ByzCoin"
 ./byzcoin --debug $DEBUG_LVL run /byzcoin
