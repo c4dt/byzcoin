@@ -20,7 +20,7 @@ pkg-update: pkg-clean
 		echo "Copying files $$a"; \
 		d=pkg/$$( dirname $$a ); \
 		mkdir -p $$d; \
-		cp -a upstream/$$a $$d; \
+		cp -a `eval echo upstream/$$a` $$d; \
 	done
 	cp -a pkg.base/ pkg
 	echo "replace go.dedis.ch/onet/v3 => ../onet" >> pkg/cothority/go.mod
