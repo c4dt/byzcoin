@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-export DEBUG_LVL DEBUG_COLOR
+export DEBUG_LVL DEBUG_COLOR DEBUG_TIME
 ssl=""
 if [[ $ADDRESS_WS == https* ]]; then
     WS_CHAIN="/byzcoin/$WS_SSL_CHAIN"

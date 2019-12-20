@@ -24,6 +24,8 @@ services:
       # Whether to niceify the debug outputs. If you put this to `true`, you should
       # have a black background in the terminal.
       - DEBUG_COLOR=false
+      # If set to true, adds a timestamp to each log-message
+      - DEBUG_TIME=true
       # Send the logging information to the c4dt logger. Optional, can be put to
       # "" if not needed.
       - GRAYLOG=graylog.c4dt.org:9001
