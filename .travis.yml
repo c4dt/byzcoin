@@ -3,6 +3,7 @@ dist: trusty
 stages:
 - test
 - deploy
+  if: master
 
 jobs:
   include:
