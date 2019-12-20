@@ -16,7 +16,7 @@ upstream:
 upstream/cothority:
 	git clone https://github.com/dedis/cothority --depth 1 upstream/cothority
 	cd upstream/cothority && \
-	for d in 06c7dcb00eb65bafd950d2e33ec7113040d6802f; do \
+	for d in $$(cat upstream_commits); do \
 		git fetch origin $$d && \
 		git cherry-pick $$d; \
 	done
