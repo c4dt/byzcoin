@@ -48,7 +48,6 @@ test:
 	cd cmd/byzcoin && ./test.sh -b
 
 docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
-#	GO111MODULE=on go get ./...
 	GO111MODULE=on GOOS=linux GOARCH=amd64 \
 		go build -ldflags="$(ldflags)" -o $@ ./cmd/byzcoin
 
