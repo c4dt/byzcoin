@@ -27,6 +27,20 @@ The simplest way to run your node is using docker.
 If you want to compile from source, or use the binary, please have a look at 
 [more setups](SOURCE.md).
 
+### TLDR
+
+```bash
+wget https://raw.githubusercontent.com/c4dt/byzcoin/master/docker-compose.yml
+# Edit ADDRESS_* and DESCRIPTION
+vi docker-compose.yaml
+docker-compose up
+```
+
+And send `~/byzcoin/public.toml` to 
+[byzcoin@groupes.epfl.ch](mailto:byzcoin@groupes.epfl.ch)
+
+## Step-by-step instructions
+
 To setup a new node, you'll need to do the following steps:
 
 1. Configure your node
@@ -105,11 +119,16 @@ DEDIS_BYZCOIN.md file and send it, together with `~/byzcoin/public.toml` to
 
 ## Updating your node
 
-To update the node, type the following:
+The `docker-compose.yaml` file contains a link to 
+[watchtower](https://hub.docker.com/r/v2tec/watchtower/)
+which will check every hour if there is a new docker-file available.
 
-```bash
-docker-compose up --build
-```
+The current `docker-compose.yaml` contains a link to `byzcoin:latest` which 
+is updated every day. 
+To not have all the nodes update within one hour, it is better to link to one
+ of the weekly snapshots: `byzcoin:Sun`, `byzcoin:Mon`, `byzcoin:Tue`, ..., 
+ `byzcoin:Sat`.
+By chosing a random day, the rebooting will be randomized over the week.  
 
 ## Running your node from crontab
 
