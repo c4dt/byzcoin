@@ -1,5 +1,5 @@
 FROM debian:stretch-slim
-RUN apt update && apt install -y procps ca-certificates && apt clean
+RUN apt update && apt install -y procps ca-certificates netcat && apt clean
 WORKDIR /root/
 RUN mkdir /byzcoin
 RUN mkdir -p .local/share .config

@@ -10,7 +10,7 @@ services:
       # you want this to be https://, so that secure webpages can access the node.
       - ADDRESS_WS=http://byzcoin.c4dt.org:7771
       # A short description of your node that will be visible to the outside.
-      - DESCRIPTION="New ByzCoin node"
+      - DESCRIPTION=New ByzCoin node
       # Only needed if ADDRESS_WS is https. Ignored if it is http. These files
       # need to be in the ~/byzcoin directory before the node is started.
       - WS_SSL_CHAIN=fullchain.pem

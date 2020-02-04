@@ -22,4 +22,12 @@ echo "Configuring ByzCoin"
     --address-ws "$ADDRESS_WS" --desc "$DESCRIPTION" \
     --byzcoin-id "$BYZCOIN_ID" --data-dir /byzcoin $ssl
 echo "Starting ByzCoin"
-./byzcoin --debug $DEBUG_LVL run /byzcoin
+
+if [[ -z "$GRAYLOG" ]]; then
+  echo "Running without Graylog"
+  ./byzcoin --debug $DEBUG_LVL run /byzcoin
+else
+  echo "Forwarding to Graylog: ${GRAYLOG/:/ }"
+  ./byzcoin --debug $DEBUG_LVL run /byzcoin | tee /dev/stderr | \
+    netcat -v ${GRAYLOG/:/ }
+fi
