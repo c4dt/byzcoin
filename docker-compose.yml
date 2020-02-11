@@ -36,6 +36,11 @@ services:
       # Where the byzcoin data resides on the host. Do not change the :/byzcoin
       # part, only the ~/byzcoin.
       - ~/byzcoin:/byzcoin
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "4"
   watchtower:
     image: v2tec/watchtower
     volumes:
