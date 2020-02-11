@@ -2,7 +2,8 @@
 
 export DEBUG_LVL DEBUG_COLOR DEBUG_TIME
 ssl=""
-if [[ $ADDRESS_WS == https* ]]; then
+if [[ ( $ADDRESS_WS =~ https.* ) && ( $USE_TLS != 'false' ) ]]; then
+    echo "Using TLS"
     WS_CHAIN="/byzcoin/$WS_SSL_CHAIN"
     WS_KEY="/byzcoin/$WS_SSL_KEY"
     if [[ ! -f $WS_CHAIN ]]; then

@@ -11,7 +11,10 @@ services:
       - ADDRESS_WS=http://byzcoin.c4dt.org:7771
       # A short description of your node that will be visible to the outside.
       - DESCRIPTION=New ByzCoin node
-      # Only needed if ADDRESS_WS is https. Ignored if it is http. These files
+      # Whether to use TLS in the conodes. It is tested against 'false'. So anyting
+      # different from 'false' will be true.
+      - USE_TLS=false
+      # WS_SSL_* is ignored if ADDRESS_WS is http or USE_TLS=false. These files 
       # need to be in the ~/byzcoin directory before the node is started.
       - WS_SSL_CHAIN=fullchain.pem
       - WS_SSL_KEY=privkey.pem
