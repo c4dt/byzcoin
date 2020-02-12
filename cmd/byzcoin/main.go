@@ -31,6 +31,7 @@ import (
 
 	"github.com/urfave/cli"
 	"go.dedis.ch/cothority/v3"
+	_ "go.dedis.ch/cothority/v3/bevm"
 	_ "go.dedis.ch/cothority/v3/byzcoin"
 	_ "go.dedis.ch/cothority/v3/byzcoin/contracts"
 	_ "go.dedis.ch/cothority/v3/calypso"
