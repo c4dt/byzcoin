@@ -18,6 +18,7 @@ For a more technical description, see one of:
 - [Why this repository](TECHNICAL.md)
 - [Collective Authority Project](https://github.com/dedis/cothority)
 - [ByzCoin Paper](https://eprint.iacr.org/2017/406.pdf)
+- [Security Assessment](ASSESSMENT.md)
 
 ## Running your node
 
