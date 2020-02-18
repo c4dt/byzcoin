@@ -113,8 +113,8 @@ func (o *Overlay) Process(env *network.Envelope) {
 		}
 		err = o.TransmitMsg(protoMsg, io)
 		if err != nil {
-			log.Errorf("Msg %s from %s produced error: %s", protoMsg.MsgType,
-				protoMsg.ServerIdentity, err.Error())
+			log.Errorf("Msg %s from %s produced error: %+v", protoMsg.MsgType,
+				protoMsg.ServerIdentity, err)
 		}
 	}
 }
@@ -178,7 +178,8 @@ func (o *Overlay) TransmitMsg(onetMsg *ProtocolMsg, io MessageProxy) error {
 			defer func() {
 				if r := recover(); r != nil {
 					svc := ServiceFactory.Name(tni.Token().ServiceID)
-					log.Errorf("Panic in call to protocol <%s>.Dispatch() from service <%s> at address %s: %v",
+					log.Errorf("Panic in call to protocol <%s>.Dispatch("+
+						") from service <%s> at address %s: %v",
 						tni.ProtocolName(), svc, o.server.ServerIdentity, r)
 					log.Error(log.Stack())
 				}
@@ -187,7 +188,8 @@ func (o *Overlay) TransmitMsg(onetMsg *ProtocolMsg, io MessageProxy) error {
 			err := pi.Dispatch()
 			if err != nil {
 				svc := ServiceFactory.Name(tni.Token().ServiceID)
-				log.Errorf("%v %s.Dispatch() returned error %s", o.server.ServerIdentity, svc, err)
+				log.Errorf("%v %s.Dispatch() returned error %+v",
+					o.server.ServerIdentity, svc, err)
 			}
 		}()
 		if err := o.RegisterProtocolInstance(pi); err != nil {
@@ -548,16 +550,11 @@ func (o *Overlay) getConfig(id TokenID) *GenericConfig {
 // config with `SetConfig`. It can be nil.
 func (o *Overlay) SendToTreeNode(from *Token, to *TreeNode, msg network.Message, io MessageProxy, c *GenericConfig) (uint64, error) {
 	tokenTo := from.ChangeTreeNodeID(to.ID)
-	var totSentLen uint64
 
 	// first send the config if present
+	var confMsg *ConfigMsg
 	if c != nil {
-		sentLen, err := o.server.Send(to.ServerIdentity, &ConfigMsg{*c, tokenTo.ID()})
-		totSentLen += sentLen
-		if err != nil {
-			log.Error("sending config failed:", err)
-			return totSentLen, xerrors.Errorf("sending: %v", err)
-		}
+		confMsg = &ConfigMsg{*c, tokenTo.ID()}
 	}
 	// then send the message
 	var final interface{}
@@ -569,15 +566,19 @@ func (o *Overlay) SendToTreeNode(from *Token, to *TreeNode, msg network.Message,
 	}
 	final, err := io.Wrap(msg, info)
 	if err != nil {
-		return totSentLen, xerrors.Errorf("wrapping message: %v", err)
+		return 0, xerrors.Errorf("wrapping message: %v", err)
 	}
 
-	sentLen, err := o.server.Send(to.ServerIdentity, final)
-	totSentLen += sentLen
-	if err != nil {
-		return totSentLen, xerrors.Errorf("sending: %v", err)
+	var sentLen uint64
+	if confMsg != nil {
+		sentLen, err = o.server.Send(to.ServerIdentity, confMsg, final)
+	} else {
+		sentLen, err = o.server.Send(to.ServerIdentity, final)
 	}
-	return totSentLen, nil
+	if err != nil {
+		err = xerrors.Errorf("sending: %v", err)
+	}
+	return sentLen, err
 }
 
 // nodeDone is called by node to signify that its work is finished and its
@@ -663,6 +664,7 @@ func (o *Overlay) CreateProtocol(name string, t *Tree, sid ServiceID) (ProtocolI
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("Panic in %s.Dispatch(): %v", name, r)
+				log.Error(log.Stack())
 			}
 		}()
 
@@ -685,6 +687,7 @@ func (o *Overlay) StartProtocol(name string, t *Tree, sid ServiceID) (ProtocolIn
 		defer func() {
 			if r := recover(); r != nil {
 				log.Errorf("Panic in %s.Start(): %v", name, r)
+				log.Error(log.Stack())
 			}
 		}()
 

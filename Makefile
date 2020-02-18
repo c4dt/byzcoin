@@ -39,7 +39,7 @@ pkg-update: pkg-clean
 		mkdir -p $$d; \
 		cp -a `eval echo upstream/$$a` $$d; \
 	done
-	cp -a pkg.base/ pkg
+	cp -av pkg.base/* pkg
 	printf "\nreplace go.dedis.ch/onet/v3 => ../onet\n" >> pkg/cothority/go.mod
 
 update: upstream-update pkg-update
