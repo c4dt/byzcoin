@@ -6,6 +6,14 @@ import (
 )
 
 func init() {
+	// Ethereum starts goroutines for caching transactions, and never
+	// terminates them
+	log.AddUserUninterestingGoroutine(
+		"go-ethereum/core.(*txSenderCacher).cache")
+
+	// Register contracts
 	log.ErrFatal(byzcoin.RegisterGlobalContract(ContractBEvmID,
 		contractBEvmFromBytes))
+	log.ErrFatal(byzcoin.RegisterGlobalContract(ContractBEvmValueID,
+		nil))
 }
