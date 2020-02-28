@@ -48,14 +48,14 @@ jobs:
 
 notifications:
   email: false
-  
+
 cache:
   directories:
   - "$HOME/.m2"
   - "$HOME/.cache/go-build"
   - "$GOPATH/pkg/mod"
   - "$HOME/.cache"
-  
+
 env:
   global:
   - secure: Sz1oGcAdY7WxW8eomikx5Tp/+KEzosMN7aAua2HMHnJ8k6r1EcfApLRyARIOvm2GdwndKWiEeC6440y+7gdcuRkXb3XgwOrw0NhBL3BbsyMiDWo0ehTC6or899glmUtY7BhTRTllwaxR2wRLJxBbA7ENMRglQ6MASfTJSnYpf7RTHO3Fo+VCo212YOZN03Jea7xrXF8JKPzCoi/I1/gxxFx86OZJEqsnoSomqRzmfIvshff3xS1dEgWBmpQUYdpO9vC1iFoaQLR6kfVsZsbIAXyezQT9drsJVeB8vNPwjMxX3mfKtoPh5fVa1pOqHaZ6o+Wl5s5wK1nGwbfL9JMOxEp9hYBXvc4I7biZO3J8frws9Y7XxllZbM2lJugpTUq0ZRcVGrESTB/TLTSjk3fDWDA4gEGyef6Y/Jb2+J2ZLrxnHKW5y4R06AXCPff/JCuOriMS34aQW9/0/uRwbH628f/rAbtEfryNNDAgpKhBC12yHd/k/A+od8iY1lk4xtohLYkF1b91QxK7qC3lDGp0fl76tyj1KQSnVl8VqyysCqDaY6/zXEPmNGqSn2qZd6VecOKeOVinYDfSDd09IIVY9oJ1h/M8ZejSK4AszK+RMEp0UIOJ+Dv9UR9NpSiN6FaIYyEMHirXnGABHI0xMVh+T2r+5OZ4ZbDrGO1/OR5P1vw=
