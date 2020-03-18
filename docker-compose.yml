@@ -29,9 +29,12 @@ services:
       - DEBUG_COLOR=false
       # If set to true, adds a timestamp to each log-message
       - DEBUG_TIME=true
-      # Send the logging information to the c4dt logger. Optional, can be put to
+      # Send the logging information to a graylog instance. Optional, can be put to
       # "" if not needed.
-      - GRAYLOG=graylog.c4dt.org:9001
+      - GRAYLOG=
+      # Send tracing information to honeycomb.io. The format is: api_key:dataset.
+      # If no key is set, tracing is disabled.
+      - HONEYCOMB_API_KEY=
     ports:
       - "7770-7771:7770-7771"
     image: c4dt/byzcoin:latest

@@ -48,8 +48,9 @@ test:
 	cd cmd/byzcoin && ./test.sh -b
 
 docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
-	GO111MODULE=on GOOS=linux GOARCH=amd64 \
-		go build -ldflags="$(ldflags)" -o $@ ./cmd/byzcoin
+	docker run --rm -v "$$PWD":/usr/src/myapp -v "$$( go env GOPATH )":/go \
+		-w /usr/src/myapp/cmd/byzcoin golang:1.13 go build -v
+	cp cmd/byzcoin/byzcoin docker
 
 docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
 	touch docker/built

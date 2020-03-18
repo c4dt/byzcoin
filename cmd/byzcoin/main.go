@@ -43,6 +43,7 @@ import (
 	"go.dedis.ch/onet/v3/app"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/network"
+	_ "go.dedis.ch/onet/v3/tracing/service"
 )
 
 const (

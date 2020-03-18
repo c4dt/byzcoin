@@ -80,14 +80,18 @@ The following variables are OK as default and can be changed if needed:
 # Whether to niceify the debug outputs. If you put this to `true`, you should
 # have a black background in the terminal.
 - DEBUG_COLOR=false
-# Send the logging information to the c4dt logger. Optional, can be put to
-# "" if not needed.
-- GRAYLOG=graylog.c4dt.org:9001
+# Send tracing information to honeycomb.io. The format is: api_key:dataset.
+# If no key is set, tracing is disabled.
+- HONEYCOMB_API_KEY=
 ```
 
 Update it with the address of your node, and eventually copy the SSL-files
 to the `~/byzcoin` directory. 
 The example for the ssl-files is given for letsencrypt files.
+
+If you're running your node for the DEDIS 9cc3, please get in contact with
+linus.gasser@epfl.ch, so that he can send you his HONEYCOMB_API_KEY.
+Then it'll be easier to trace eventual errors in the network.
 
 ## Starting your node
 
