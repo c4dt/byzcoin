@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -177,13 +178,13 @@ func TestDarc_EvolveMoreOnline(t *testing.T) {
 	// create darcs that do not have the full path, i.e. we set VerificationDarcs to nil
 	lightDarc1 := darcs[len(darcs)-1].Copy()
 	lightDarc1.VerificationDarcs = nil
-	lightDarc1.Signatures = []Signature{Signature{
+	lightDarc1.Signatures = []Signature{{
 		Signature: copyBytes(darcs[len(darcs)-1].Signatures[0].Signature),
 		Signer:    darcs[len(darcs)-1].Signatures[0].Signer,
 	}}
 	lightDarc2 := darcs[len(darcs)-2].Copy()
 	lightDarc2.VerificationDarcs = nil
-	lightDarc2.Signatures = []Signature{Signature{
+	lightDarc2.Signatures = []Signature{{
 		Signature: copyBytes(darcs[len(darcs)-2].Signatures[0].Signature),
 		Signer:    darcs[len(darcs)-2].Signatures[0].Signer,
 	}}
@@ -620,4 +621,23 @@ func TestParseIdentity(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, i.Proxy)
 	require.Equal(t, in, i.String())
+
+	in = "evm_contract:00"
+	i, err = ParseIdentity(in)
+	require.Error(t, err)
+
+	in = "evm_contract:xx:0xyy"
+	i, err = ParseIdentity(in)
+	require.Error(t, err)
+
+	in = "evm_contract:00:0x00:00"
+	i, err = ParseIdentity(in)
+	require.Error(t, err)
+
+	in = "evm_contract:00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff:0x00112233445566778899aabbccddeeff00112233"
+	i, err = ParseIdentity(in)
+	require.NoError(t, err)
+	require.NotNil(t, i.EvmContract)
+	// ToLower() because common.Address uses address checksum (EIP-55)
+	require.Equal(t, in, strings.ToLower(i.String()))
 }
