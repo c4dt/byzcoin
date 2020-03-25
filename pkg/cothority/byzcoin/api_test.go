@@ -307,6 +307,7 @@ func TestClient_NoPhantomSkipchain(t *testing.T) {
 	gac, err = c.GetAllByzCoinIDs(roster.List[0])
 	require.NoError(t, err)
 	require.Equal(t, 1, len(gac.IDs))
+	require.NoError(t, l.WaitDone(time.Second))
 }
 
 // Insure that the decoder will return an error if the reply
@@ -348,6 +349,47 @@ func TestClient_SignerCounterDecoder(t *testing.T) {
 	c.Latest.Index = 2
 	// Incorrect scenario where the reply is older.
 	require.Error(t, c.signerCounterDecoder(buf, &reply))
+}
+
+func TestClient_GetUpdates(t *testing.T) {
+	s := newSer(t, 1, testInterval)
+	defer s.local.CloseAll()
+
+	req := &GetUpdatesRequest{
+		Instances:     nil,
+		Flags:         0,
+		LatestBlockID: nil,
+	}
+	_, err := s.service().GetUpdates(req)
+	require.Error(t, err)
+
+	req.Instances = []IDVersion{{ConfigInstanceID, 0}}
+	req.LatestBlockID = s.genesis.SkipChainID()
+	gur, err := s.service().GetUpdates(req)
+	require.NoError(t, err)
+	require.Equal(t, 0, len(gur.Proofs))
+
+	req.Flags = GUFSendVersion0
+	gur, err = s.service().GetUpdates(req)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(gur.Proofs))
+	require.True(t, gur.Proofs[0].Match(ConfigInstanceID[:]))
+
+	ctx, _ := createConfigTxWithCounter(t, time.Millisecond*100, *s.roster,
+		1e5, s, 1)
+	s.sendTxAndWait(t, ctx, 10)
+
+	req.Flags = 0
+	_, err = s.service().GetUpdates(req)
+	require.Error(t, err)
+	latest, err := s.service().db().GetLatest(s.genesis)
+	req.LatestBlockID = latest.Hash
+	require.NoError(t, err)
+
+	gur, err = s.service().GetUpdates(req)
+	require.NoError(t, err)
+	require.Equal(t, 1, len(gur.Proofs))
+	require.True(t, gur.Proofs[0].Match(ConfigInstanceID[:]))
 }
 
 const testServiceName = "TestByzCoin"

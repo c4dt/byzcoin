@@ -1028,7 +1028,8 @@ func sendTransactionWithCounter(t *testing.T, s *ser, client int, kind string, w
 		InclusionWait: wait,
 	})
 
-	for doCatchUp := false; !doCatchUp && wait != 0; _, doCatchUp = s.services[client].skService().WaitBlock(s.genesis.SkipChainID(), nil) {
+	for isProcessing := true; isProcessing && wait != 0; {
+		isProcessing = ser.skService().ChainIsProcessing(s.genesis.SkipChainID())
 		time.Sleep(s.interval)
 	}
 
@@ -1044,6 +1045,21 @@ func sendTransactionWithCounter(t *testing.T, s *ser, client int, kind string, w
 	}
 
 	return proof, tx.Instructions[0].Hash(), resp, err, err2
+}
+
+func (s *ser) sendInstructions(t *testing.T, wait int,
+	instr ...Instruction) (resp *AddTxResponse, ctx ClientTransaction) {
+	var err error
+	ctx, err = combineInstrsAndSign(s.signer, instr...)
+	require.NoError(t, err)
+	resp, err = s.service().AddTransaction(&AddTxRequest{
+		Version:       CurrentVersion,
+		SkipchainID:   s.genesis.SkipChainID(),
+		Transaction:   ctx,
+		InclusionWait: wait,
+	})
+	require.NoError(t, err)
+	return
 }
 
 func TestService_InvalidVerification(t *testing.T) {
@@ -1374,17 +1390,7 @@ func TestService_DarcEvolutionFail(t *testing.T) {
 			Invoke:        &invoke,
 			SignerCounter: []uint64{counterResponse.Counters[0] + 1},
 		}
-		ctx, err := combineInstrsAndSign(s.signer, instr)
-		require.NoError(t, err)
-
-		// send it
-		resp, err := s.service().AddTransaction(&AddTxRequest{
-			Version:       CurrentVersion,
-			SkipchainID:   s.genesis.SkipChainID(),
-			Transaction:   ctx,
-			InclusionWait: 10,
-		})
-		require.NoError(t, err)
+		resp, _ := s.sendInstructions(t, 10, instr)
 		require.Contains(t, resp.Error, "instruction verification failed")
 	}
 
@@ -1485,9 +1491,7 @@ func TestService_DarcDelegation(t *testing.T) {
 		},
 		SignerCounter: []uint64{1},
 	}
-	ctx, err := combineInstrsAndSign(s.signer, instr)
-	require.NoError(t, err)
-	s.sendTx(t, ctx)
+	s.sendInstructions(t, 10, instr)
 	pr := s.waitProof(t, NewInstanceID(darc2.GetBaseID()))
 	require.True(t, pr.InclusionProof.Match(darc2.GetBaseID()))
 
@@ -1513,9 +1517,7 @@ func TestService_DarcDelegation(t *testing.T) {
 		},
 		SignerCounter: []uint64{2},
 	}
-	ctx, err = combineInstrsAndSign(s.signer, instr)
-	require.NoError(t, err)
-	s.sendTx(t, ctx)
+	s.sendInstructions(t, 10, instr)
 	pr = s.waitProof(t, NewInstanceID(darc3.GetBaseID()))
 	require.True(t, pr.InclusionProof.Match(darc3.GetBaseID()))
 }
@@ -1547,9 +1549,7 @@ func TestService_CheckAuthorization(t *testing.T) {
 		},
 		SignerCounter: []uint64{1},
 	}
-	ctx, err := combineInstrsAndSign(s.signer, instr)
-	require.NoError(t, err)
-	s.sendTx(t, ctx)
+	s.sendInstructions(t, 10, instr)
 	pr := s.waitProof(t, NewInstanceID(darc2.GetBaseID()))
 	require.True(t, pr.InclusionProof.Match(darc2.GetBaseID()))
 
@@ -1735,9 +1735,7 @@ func TestService_SetConfigRosterNewNodes(t *testing.T) {
 	require.NoError(t, err)
 	instr := createSpawnInstr(s.darc.GetBaseID(), ContractDarcID, "darc", testDarcBuf)
 	require.NoError(t, err)
-	ctx, err := combineInstrsAndSign(s.signer, instr)
-	require.NoError(t, err)
-	s.sendTxAndWait(t, ctx, 10)
+	s.sendInstructions(t, 10, instr)
 
 	log.Lvl1("Creating blocks to check rotation of the leader")
 	leanClient := onet.NewClient(cothority.Suite, ServiceName)
@@ -1784,7 +1782,8 @@ func TestService_SetConfigRosterNewNodes(t *testing.T) {
 	// Make sure the latest node is correctly activated and that the
 	// new conodes are done with catching up
 	for _, ser := range servers {
-		ctx, _ = createConfigTxWithCounter(t, testInterval, *rosterR, defaultMaxBlockSize, s, counter)
+		ctx, _ := createConfigTxWithCounter(t, testInterval, *rosterR,
+			defaultMaxBlockSize, s, counter)
 		counter++
 		for i := 0; i < 2; i++ {
 			resp, err := ser.Service(ServiceName).(*Service).AddTransaction(&AddTxRequest{
@@ -1905,6 +1904,7 @@ func addDummyTxsTo(t *testing.T, s *ser, nbr int, perCTx int, count int, idx int
 		require.NoError(t, err)
 
 		s.sendTxToAndWait(t, ctx, idx, 10)
+		s.sendInstructions(t, 10, instrs...)
 		s.local.WaitDone(time.Second)
 	}
 	return count
@@ -1926,9 +1926,7 @@ func TestService_SetConfigRosterDownload(t *testing.T) {
 	require.NoError(t, err)
 	instr := createSpawnInstr(s.darc.GetBaseID(), ContractDarcID, "darc", testDarcBuf)
 	require.NoError(t, err)
-	ctx, err := combineInstrsAndSign(s.signer, instr)
-	require.NoError(t, err)
-	s.sendTxAndWait(t, ctx, 10)
+	s.sendInstructions(t, 10, instr)
 	// Add other transaction so we're on a new border between forward links
 	ct := addDummyTxs(t, s, 4, 1, 2)
 
@@ -1940,7 +1938,8 @@ func TestService_SetConfigRosterDownload(t *testing.T) {
 	_, newRoster, _ := s.local.MakeSRS(cothority.Suite, 1, ByzCoinID)
 
 	newRoster = onet.NewRoster(append(s.roster.List, newRoster.List...))
-	ctx, _ = createConfigTxWithCounter(t, testInterval, *newRoster, defaultMaxBlockSize, s, ct)
+	ctx, _ := createConfigTxWithCounter(t, testInterval, *newRoster,
+		defaultMaxBlockSize, s, ct)
 	ct++
 	s.sendTxAndWait(t, ctx, 10)
 
@@ -2709,8 +2708,8 @@ func (s *ser) testDarcEvolution(t *testing.T, d2 darc.Darc, fail bool) (pr *Proo
 }
 
 func (s *ser) deleteDBs(t *testing.T, index int) {
-	log.Lvl1("Deleting DB of node", index)
 	bc := s.services[index]
+	log.Lvlf1("%s: Deleting DB of node %d", bc.ServerIdentity(), index)
 	bc.TestClose()
 	for scid := range bc.stateTries {
 		require.NoError(t, deleteDB(bc.ServiceProcessor, []byte(scid)))
@@ -2721,8 +2720,7 @@ func (s *ser) deleteDBs(t *testing.T, index int) {
 	sc := bc.Service(skipchain.ServiceName).(*skipchain.Service)
 	require.NoError(t, deleteDB(sc.ServiceProcessor, []byte("skipblocks")))
 	require.NoError(t, deleteDB(sc.ServiceProcessor, []byte("skipchainconfig")))
-	sc.TestRestart()
-	require.NoError(t, bc.startAllChains())
+	require.NoError(t, bc.TestRestart())
 }
 
 // Waits to have a coherent view in all nodes with at least the block

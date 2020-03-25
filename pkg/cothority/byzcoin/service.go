@@ -15,6 +15,8 @@ import (
 	"sync"
 	"time"
 
+	uuid "gopkg.in/satori/go.uuid.v1"
+
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/blscosi/protocol"
 	"go.dedis.ch/cothority/v3/byzcoin/trie"
@@ -31,7 +33,6 @@ import (
 	"go.dedis.ch/protobuf"
 	"go.etcd.io/bbolt"
 	"golang.org/x/xerrors"
-	uuid "gopkg.in/satori/go.uuid.v1"
 )
 
 var pairingSuite = suites.MustFind("bn256.adapter").(*pairing.SuiteBn256)
@@ -602,6 +603,42 @@ func (s *Service) GetSignerCounters(req *GetSignerCounters) (*GetSignerCountersR
 		Index:    uint64(st.GetIndex()),
 	}
 	return &resp, nil
+}
+
+// GetUpdates returns instances that have a newer versions than the ones
+// passed to it.
+func (s *Service) GetUpdates(pr *GetUpdatesRequest) (*GetUpdatesReply, error) {
+	sb := s.db().GetByID(pr.LatestBlockID)
+	if sb == nil {
+		return nil, xerrors.New("cannot find skipblock while getting proof")
+	}
+	if len(sb.ForwardLink) > 0 {
+		return nil, xerrors.New("can only give proofs for latest block")
+	}
+
+	st, err := s.GetReadOnlyStateTrie(sb.SkipChainID())
+	if err != nil {
+		return nil, xerrors.Errorf("getting state trie: %w", err)
+	}
+
+	sendVersion0 := pr.Flags&GUFSendVersion0 > 0
+	reply := &GetUpdatesReply{}
+	for _, idv := range pr.Instances {
+		_, ver, _, _, err := st.GetValues(idv.ID[:])
+		if err != nil {
+			return nil, fmt.Errorf("couldn't read values of instance: %v", err)
+		}
+		if ver <= idv.Version &&
+			!(sendVersion0 && ver == 0) {
+			continue
+		}
+		proof, err := st.GetProof(idv.ID[:])
+		if err != nil {
+			return nil, fmt.Errorf("error while looking up proof: %v", err)
+		}
+		reply.Proofs = append(reply.Proofs, *proof)
+	}
+	return reply, nil
 }
 
 // DownloadState creates a snapshot of the current state and then returns the
@@ -2492,8 +2529,7 @@ func (s *Service) getTxs(leader *network.ServerIdentity, roster *onet.Roster, sc
 
 	// First we check if we are up-to-date with this chain and catch up
 	// if necessary.
-	_, doCatchUp := s.skService().WaitBlock(scID, latestID)
-	if doCatchUp {
+	if !s.skService().ChainHasBlock(scID, latestID) {
 		// The function will prevent multiple request to catch up so we can securely call it here
 		err := s.catchupFromID(roster, scID, latestID)
 		if err != nil {
@@ -2547,6 +2583,7 @@ func loadNonceFromTxs(txs TxResults) ([]byte, error) {
 func (s *Service) TestClose() {
 	s.closedMutex.Lock()
 	if !s.closed {
+		s.skService().TestClose()
 		s.closed = true
 		s.closedMutex.Unlock()
 		s.cleanupGoroutines()
@@ -2556,8 +2593,16 @@ func (s *Service) TestClose() {
 	}
 }
 
+// TestRestart activates a test that has been closed using TestClose. This
+// allows to simulate restarting of nodes in the tests.
+func (s *Service) TestRestart() error {
+	if err := s.startAllChains(); err != nil {
+		return err
+	}
+	return s.skService().TestRestart()
+}
+
 func (s *Service) cleanupGoroutines() {
-	log.Lvl1(s.ServerIdentity(), "closing go-routines")
 	s.heartbeats.closeAll()
 	s.closeLeaderMonitorChan <- true
 	s.viewChangeMan.closeAll()
@@ -2942,6 +2987,7 @@ func newService(c *onet.Context) (onet.Service, error) {
 		s.CreateGenesisBlock,
 		s.AddTransaction,
 		s.GetProof,
+		s.GetUpdates,
 		s.CheckAuthorization,
 		s.GetSignerCounters,
 		s.DownloadState,

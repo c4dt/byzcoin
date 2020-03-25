@@ -562,6 +562,20 @@ func (c *Coin) SafeSub(a uint64) error {
 	return xerrors.New("uint64 underflow")
 }
 
+// SafeTransfer takes val from one coin and puts it to another.
+// It checks that the source coin has enough,
+// and that the destination coin will not overflow.
+func (c *Coin) SafeTransfer(to *Coin, val uint64) error {
+	if err := c.SafeSub(val); err != nil {
+		return err
+	}
+	if err := to.SafeAdd(val); err != nil {
+		_ = c.SafeAdd(val)
+		return err
+	}
+	return nil
+}
+
 type notification struct {
 	block  *skipchain.SkipBlock
 	txs    TxResults
@@ -703,3 +717,12 @@ func (c ChainConfig) String() string {
 	}
 	return res.String()
 }
+
+// GetUpdatesFlags define how the proofs will be returned
+type GetUpdatesFlags uint64
+
+const (
+	// GUFSendVersion0 will make GetUpdates to send all instances with
+	// version 0, even those that are note updated.
+	GUFSendVersion0 = GetUpdatesFlags(1 << iota)
+)
