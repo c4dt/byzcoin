@@ -49,7 +49,7 @@ test:
 
 docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
 	docker run --rm -v "$$PWD":/usr/src/myapp -v "$$( go env GOPATH )":/go \
-		-w /usr/src/myapp/cmd/byzcoin golang:1.13 go build -v
+		-w /usr/src/myapp/cmd/byzcoin golang:1.13 go build -v -ldflags="$(ldflags)"
 	cp cmd/byzcoin/byzcoin docker
 
 docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
