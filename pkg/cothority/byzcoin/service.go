@@ -2468,6 +2468,10 @@ func (s *Service) executeInstruction(gs GlobalState, cin []Coin,
 	default:
 		return nil, nil, xerrors.New("unexpected contract type")
 	}
+	if err != nil {
+		return nil, nil, xerrors.Errorf(
+			"error while executing instruction %s: %v", instr, err)
+	}
 
 	// As the InstanceID of each sc is not necessarily the same as the
 	// instruction, we need to get the version from the trie
@@ -2596,10 +2600,10 @@ func (s *Service) TestClose() {
 // TestRestart activates a test that has been closed using TestClose. This
 // allows to simulate restarting of nodes in the tests.
 func (s *Service) TestRestart() error {
-	if err := s.startAllChains(); err != nil {
+	if err := s.skService().TestRestart(); err != nil {
 		return err
 	}
-	return s.skService().TestRestart()
+	return s.startAllChains()
 }
 
 func (s *Service) cleanupGoroutines() {
