@@ -144,3 +144,78 @@ your crontab. Add the following line:
 @reboot docker-compose restart
 ```
 
+# Migrating from old installation
+
+If you're running a node with its own `private.toml` and `xxxxxx.db`, the easiest
+way is to copy those two files in a `~/byzcoin` directory and then adjust the
+following variables in `docker-compose.yaml`:
+
+- ADDRESS_NODE=tls://byzcoin.c4dt.org:7770 # Change with your main address:port of the node
+- ADDRESS_WS=http://byzcoin.c4dt.org       # This is how your node will listen to websocket requests
+- USE_TLS=false                            # Set this to 'true' if the node should handle TLS connections
+
+## ADDRESS_WS
+
+This is taken from the point of view of the node. We suppose you have TLS _some_ where:
+
+1. The node is behind a proxy that handles TLS (apache, nginx, traefik, sstunnel, ...).
+`url:port` is where the proxy forwards the requests to the node. If you leave the `ADDRESS_WS`
+empty, it will take the default value, which is the same as `ADDRESS_NODE`, but using the
+next port.
+```
+  ADDRESS_WS=[https://url:port]
+```
+2. The node handles the certificates on its own. If you omit `port`, it defaults to `443`:
+```
+  ADDRESS_WS=https://url[:port]
+  USE_TLS=true
+```
+
+## public.toml
+
+The public.toml file is re-generated according to the `private.toml` file. This brings some problems
+to the `ADDRESS_WS`, which is used for the `URL` parameter in the `public.toml`. If you have a proxy
+in front of the node, and the `ADDRESS_WS` is different from the proxy address, the `URL` parameter
+in `public.toml` will be wrong and you will have to adjust it manually.
+
+## LetsEncrypt
+
+In case the node handles its own certificates, and that you're using LetsEncrypt, you can
+create the following script:
+```
+cat <<EOF > /etc/letsencrypt/renewal-hooks/deploy/byzcoin.sh
+#!/bin/bash
+cp /etc/letsencrypt/live/url/{fullchain,privkey}.pem /home/conode/byzcoin
+EOF
+chmod a+x /etc/letsencrypt/renewal-hooks/deploy/byzcoin.sh
+```
+
+## Traefik
+
+If you have a working [dockerified trafik instance](https://hub.docker.com/_/traefik) on your server,
+including a docker-wide network, you can add the following to your byzcoin service definition in
+`docker-compose.yaml`:
+```
+    environment:
+      # ...
+      - ADDRESS_WS=
+      # ...
+    labels:
+     - "traefik.enable=true"
+     - "traefik.http.routers.byzcoin.rule=Host(`byzcoin.c4dt.org`)"
+     - "traefik.http.routers.byzcoin.entrypoints=websecure"
+     - "traefik.http.routers.byzcoin.tls.certresolver=myresolver"
+     - "traefik.http.services.byzcoin.loadbalancer.server.port=7771"
+    networks:
+     - traefik
+     
+networks:
+  traefik:
+    external:
+      name: traefik_traefik # Adjust to match your traefik-installation
+```
+
+Before publishing your `public.toml`, you need to change the `URL` to:
+```
+URL = https://byzcoin.c4dt.org
+```
