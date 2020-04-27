@@ -38,6 +38,7 @@ services:
     ports:
       - "7770-7771:7770-7771"
     image: c4dt/byzcoin:latest
+    restart: always
     volumes:
       # Where the byzcoin data resides on the host. Do not change the :/byzcoin
       # part, only the ~/byzcoin.
