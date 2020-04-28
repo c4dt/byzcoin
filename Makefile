@@ -54,12 +54,12 @@ test:
 	cd cmd/byzcoin && ./test.sh -b
 
 docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
-	docker run -ti --rm -v "$$PWD":/usr/src/myapp -v "$$( go env GOPATH )":/go \
-		-w /usr/src/myapp golang:1.13 \
+	docker run -ti --rm -v "$$PWD":/usr/src/myapp \
+		-w /usr/src/myapp golang:1.14 \
 		sh -c "go build -v -ldflags='$(ldflags)' ./cmd/byzcoin; \
 		cd pkg/cothority; go build -v -ldflags='$(ldflags)' ./byzcoin/bcadmin; \
 		cd scmgr; go build -v -ldflags='$(ldflags)' ."
-	mv byzcoin pkg/cothority/{bcadmin,scmgr/scmgr} docker
+	mv byzcoin pkg/cothority/bcadmin pkg/cothority/scmgr/scmgr docker
 
 docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
 	touch docker/built
