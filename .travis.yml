@@ -10,12 +10,12 @@ jobs:
   - stage: test
     name: Byzcoin
     language: go
-    go: 1.13.x
+    go: 1.14.x
     script: make update && cd cmd/byzcoin && ./test.sh
 
   - name: Replay
     language: go
-    go: 1.13.x
+    go: 1.14.x
     script:
     - make update
     - "( cd upstream/cothority; go build -o ../../bcadmin ./byzcoin/bcadmin )"
@@ -39,10 +39,10 @@ jobs:
 
   - name: docker
     language: go
-    go: 1.13.x
     services:
     - docker
     script:
+    - echo $SHELL
     - make update
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
     - make docker-push
