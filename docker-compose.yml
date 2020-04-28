@@ -47,6 +47,7 @@ services:
       options:
         max-size: "10m"
         max-file: "4"
+    restart: unless-stopped
   watchtower:
     image: containrrr/watchtower:latest
     volumes:

@@ -13,6 +13,7 @@ cothority/blscosi/protocol
 cothority/blscosi/bdnproto
 cothority/byzcoin/*go
 cothority/byzcoin/*md
+cothority/byzcoin/bcadmin
 cothority/byzcoin/contracts
 cothority/byzcoin/trie
 cothority/byzcoin/viewchange
@@ -26,6 +27,7 @@ cothority/darc
 cothority/dkg/pedersen
 cothority/messaging
 cothority/personhood/contracts/*.go
+cothority/scmgr
 cothority/skipchain/*.go
 cothority/skipchain/*.md
 cothority/status/service
