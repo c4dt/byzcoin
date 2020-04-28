@@ -42,15 +42,24 @@ pkg-update: pkg-clean
 	cp -av pkg.base/* pkg
 	printf "\nreplace go.dedis.ch/onet/v3 => ../onet\n" >> pkg/cothority/go.mod
 
-update: upstream-update pkg-update
+pkg-patch: BCA = pkg/cothority/byzcoin/bcadmin/main.go
+pkg-patch:
+	sed -i.bak '/v3.eventlog/d' $(BCA)
+	sed -i.bak 's.v3/personhood.v3/personhood/contracts.' $(BCA)
+	rm $(BCA).bak
+
+update: upstream-update pkg-update pkg-patch
 
 test:
 	cd cmd/byzcoin && ./test.sh -b
 
 docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
-	docker run --rm -v "$$PWD":/usr/src/myapp -v "$$( go env GOPATH )":/go \
-		-w /usr/src/myapp/cmd/byzcoin golang:1.13 go build -v -ldflags="$(ldflags)"
-	cp cmd/byzcoin/byzcoin docker
+	docker run -ti --rm -v "$$PWD":/usr/src/myapp -v "$$( go env GOPATH )":/go \
+		-w /usr/src/myapp golang:1.13 \
+		sh -c "go build -v -ldflags='$(ldflags)' ./cmd/byzcoin; \
+		cd pkg/cothority; go build -v -ldflags='$(ldflags)' ./byzcoin/bcadmin; \
+		cd scmgr; go build -v -ldflags='$(ldflags)' ."
+	mv byzcoin pkg/cothority/{bcadmin,scmgr/scmgr} docker
 
 docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
 	touch docker/built
