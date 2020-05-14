@@ -543,7 +543,7 @@ func (s *Service) CheckAuthorization(req *CheckAuthorization) (resp *CheckAuthor
 	if err != nil {
 		return nil, xerrors.Errorf("getting trie: %v", err)
 	}
-	d, err := LoadDarcFromTrie(st, req.DarcID)
+	d, err := st.LoadDarc(req.DarcID)
 	if err != nil {
 		return nil, xerrors.Errorf("couldn't find darc: %v", err)
 	}
@@ -557,7 +557,7 @@ func (s *Service) CheckAuthorization(req *CheckAuthorization) (resp *CheckAuthor
 			log.Error("invalid darc id", s, len(id), err)
 			return nil
 		}
-		d, err := LoadDarcFromTrie(st, id)
+		d, err := st.LoadDarc(id)
 		if err != nil {
 			log.Error("didn't find darc")
 			return nil
@@ -624,17 +624,29 @@ func (s *Service) GetUpdates(pr *GetUpdatesRequest) (*GetUpdatesReply, error) {
 	sendVersion0 := pr.Flags&GUFSendVersion0 > 0
 	reply := &GetUpdatesReply{}
 	for _, idv := range pr.Instances {
-		_, ver, _, _, err := st.GetValues(idv.ID[:])
-		if err != nil {
-			return nil, fmt.Errorf("couldn't read values of instance: %v", err)
-		}
-		if ver <= idv.Version &&
-			!(sendVersion0 && ver == 0) {
-			continue
-		}
 		proof, err := st.GetProof(idv.ID[:])
 		if err != nil {
 			return nil, fmt.Errorf("error while looking up proof: %v", err)
+		}
+
+		// Only send missing proofs if flag is set
+		if !proof.Match(idv.ID[:]) {
+			if pr.Flags&GUFSendMissingProofs > 0 {
+				reply.Proofs = append(reply.Proofs, *proof)
+			}
+			continue
+		}
+
+		// Check if it's a new version
+		var inst StateChangeBody
+		err = protobuf.Decode(proof.Get(idv.ID[:]), &inst)
+		if err != nil {
+			return nil, fmt.Errorf("invalid instance stored in trie: %v",
+				err)
+		}
+		if inst.Version <= idv.Version &&
+			!(sendVersion0 && inst.Version == 0) {
+			continue
 		}
 		reply.Proofs = append(reply.Proofs, *proof)
 	}
@@ -1625,7 +1637,8 @@ func (s *Service) updateTrieCallback(sbID skipchain.SkipBlockID) error {
 	log.Lvlf2("%s Updating %d transactions for %x on index %v", s.ServerIdentity(), len(body.TxResults), sb.SkipChainID(), sb.Index)
 	_, _, scs, _ := s.createStateChanges(st.MakeStagingStateTrie(), sb.SkipChainID(), body.TxResults, noTimeout, header.Version, header.Timestamp)
 
-	log.Lvlf3("%s Storing index %d with %d state changes %v", s.ServerIdentity(), sb.Index, len(scs), scs.ShortStrings())
+	log.Lvlf3("%s Storing index %d with %d state changes %v",
+		s.ServerIdentity(), sb.Index, len(scs), scs.ShortStrings())
 	// Update our global state using all state changes.
 	if err = st.VerifiedStoreAll(scs, sb.Index, header.Version, header.TrieRoot); err != nil {
 		return xerrors.Errorf("storing state changes: %v", err)
@@ -1719,7 +1732,8 @@ func (s *Service) updateTrieCallback(sbID skipchain.SkipBlockID) error {
 			// Start viewchange monitor that will fire if we don't get updates in time.
 			log.Lvlf2("%s started viewchangeMonitor for %x", s.ServerIdentity(), sb.SkipChainID())
 			s.viewChangeMan.add(s.sendViewChangeReq, s.sendNewView, s.isLeader, string(sb.SkipChainID()))
-			s.viewChangeMan.start(s.ServerIdentity().ID, sb.SkipChainID(), initialDur, s.getFaultThreshold(sb.Hash))
+			s.viewChangeMan.start(s.ServerIdentity().ID, sb.SkipChainID(), initialDur,
+				s.getSignatureThreshold(sb.Hash))
 		}
 	} else {
 		if s.heartbeats.exists(scIDstr) {
@@ -1852,7 +1866,7 @@ func (s *Service) LoadConfig(scID skipchain.SkipBlockID) (*ChainConfig, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("getting trie: %v", err)
 	}
-	cfg, err := LoadConfigFromTrie(st)
+	cfg, err := st.LoadConfig()
 	return cfg, cothority.ErrorOrNil(err, "reading trie")
 }
 
@@ -1886,7 +1900,7 @@ func (s *Service) LoadBlockInfo(scID skipchain.SkipBlockID) (time.Duration, int,
 }
 
 func loadBlockInfo(st ReadOnlyStateTrie) (time.Duration, int, error) {
-	config, err := LoadConfigFromTrie(st)
+	config, err := st.LoadConfig()
 	if err != nil {
 		if xerrors.Is(err, errKeyNotSet) {
 			err = nil
@@ -2062,7 +2076,7 @@ func (s *Service) verifySkipBlock(newID []byte, newSB *skipchain.SkipBlock) bool
 		return false
 	}
 
-	config, err := LoadConfigFromTrie(sst)
+	config, err := sst.LoadConfig()
 	if err != nil {
 		log.Error(s.ServerIdentity(), err)
 		return false
@@ -2809,7 +2823,7 @@ func (s *Service) startChain(genesisID skipchain.SkipBlockID) error {
 	s.viewChangeMan.add(s.sendViewChangeReq, s.sendNewView, s.isLeader,
 		string(genesisID))
 	s.viewChangeMan.start(s.ServerIdentity().ID, genesisID, initialDur,
-		s.getFaultThreshold(latest.Hash))
+		s.getSignatureThreshold(latest.Hash))
 
 	return nil
 }
