@@ -2,7 +2,7 @@ CONTAINER = byzcoin
 IMAGE_NAME = c4dt/$(CONTAINER)
 VERSION = $(shell git -C upstream/cothority fetch --tags; \
 	git -C upstream/cothority tag | sort | tail -n 1 )
-TAG = $(VERSION)-$(shell date +%y%m%d)
+TAG := $(VERSION)-$(shell date +%y%m%d-%H%M)
 DOCKER_NAME = $(IMAGE_NAME)
 DOW = $(shell date +%a)
 
