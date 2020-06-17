@@ -1130,12 +1130,6 @@ func (s *Service) createNewBlock(scID skipchain.SkipBlockID, r *onet.Roster, tx 
 		return nil, xerrors.Errorf("storing block: %v", err)
 	}
 
-	// State changes are cached only when the block is confirmed
-	err = s.stateChangeStorage.append(scs, ssbReply.Latest)
-	if err != nil {
-		log.Error(err)
-	}
-
 	return ssbReply.Latest, nil
 }
 
@@ -1450,7 +1444,8 @@ func (s *Service) catchUp(sb *skipchain.SkipBlock) {
 			// Asked to catch up on an unknown chain, but don't want to download, instead only replay
 			// the blocks. This is mostly useful for testing, in a real deployement the catchupDownloadAll
 			// will be smaller than any chain that is online for more than a day.
-			log.Warn(s.ServerIdentity(), "problem with trie, will create a new one:", err)
+			log.Warnf("%s: problem with trie, "+
+				"will create a new one: %+v", s.ServerIdentity(), err)
 			genesis, err := cl.GetSingleBlock(sb.Roster, sb.SkipChainID())
 			if err != nil {
 				log.Error("Couldn't get genesis-block:", err)
@@ -2192,7 +2187,7 @@ func (s *Service) createStateChanges(sst *stagingStateTrie, scID skipchain.SkipB
 		if err != nil {
 			tx.Accepted = false
 			txOut = append(txOut, tx)
-			log.Warn(s.ServerIdentity(), err)
+			log.Warnf("%s: %+v", s.ServerIdentity(), err)
 		} else {
 			// We would like to be able to check if this txn is so big it could never fit into a block,
 			// and if so, drop it. But we can't with the current API of createStateChanges.
@@ -2441,6 +2436,7 @@ func (s *Service) executeInstruction(gs GlobalState, cin []Coin,
 	err error) {
 	defer func() {
 		if re := recover(); re != nil {
+			log.Lvl2("Recovered from panic:\n", log.Stack())
 			err = xerrors.Errorf("executing instr: %v", re)
 		}
 	}()
@@ -3149,8 +3145,12 @@ func newService(c *onet.Context) (onet.Service, error) {
 		return nil, xerrors.Errorf("unknown db version number %v", ver)
 	}
 
-	// initialize the stats of the storage
-	s.stateChangeStorage.calculateSize()
+	go func() {
+		// initialize the stats of the storage
+		if err := s.stateChangeStorage.calculateSize(); err != nil {
+			log.Errorf("couldn't calculate size: %v", err)
+		}
+	}()
 
 	if err := s.startAllChains(); err != nil {
 		return nil, xerrors.Errorf("starting chains: %v", err)
