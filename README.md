@@ -219,3 +219,35 @@ Before publishing your `public.toml`, you need to change the `URL` to:
 ```
 URL = https://byzcoin.c4dt.org
 ```
+
+# Updating
+
+This repo is automatically updated once per day.
+This is done using a travis-cronjob: https://travis-ci.com/github/c4dt/byzcoin/settings
+Every node has currently a `watchtower` docker running once an hour and will
+ update accordingly.
+The roadmap for a better update is:
+
+1. update the code once per week.
+2. the nodes update throughout the week
+
+This would allow catching 'rogue' updates hopefully before they changed all
+ the nodes.
+ 
+## Verification
+
+The travis-job at c4dt/byzcoin verifies that the new code correctly replays
+ all known transactions on the chain.
+This plus the normal unit-tests from the code are the only verification done
+ before a new docker is created and published.
+ 
+## Manual updates
+ 
+During heavy development, the automatic update is sometimes disabled.
+To update manually, use the following:
+
+```bash
+make update
+git commit -am "updated to latest byzcoin"
+git push
+```
