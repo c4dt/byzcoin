@@ -2,10 +2,11 @@ package byzcoin
 
 import (
 	"fmt"
-	"go.dedis.ch/cothority/v3/skipchain"
 	"math"
 	"testing"
 	"time"
+
+	"go.dedis.ch/cothority/v3/skipchain"
 
 	"github.com/stretchr/testify/require"
 	"go.dedis.ch/cothority/v3/byzcoin/viewchange"
@@ -92,8 +93,10 @@ func testViewChange(t *testing.T, nHosts, nFailures int, interval time.Duration)
 	// a follower (not the new leader)
 	log.Lvl1("Sending a transaction to the node after the new leader")
 	tx1ID := NewInstanceID([]byte{2}).Slice()
-	tx1, err := createOneClientTx(s.darc.GetBaseID(), dummyContract, tx1ID,
-		s.signer)
+	counter := uint64(2)
+	tx1, err := createOneClientTxWithCounter(s.darc.GetBaseID(), dummyContract, tx1ID,
+		s.signer, counter)
+	counter++
 	require.NoError(t, err)
 	s.sendTxTo(t, tx1, nFailures+1)
 
@@ -111,7 +114,6 @@ func testViewChange(t *testing.T, nHosts, nFailures int, interval time.Duration)
 	}
 
 	log.Lvl1("Creating new TX")
-	counter := uint64(2)
 	s.sendDummyTx(t, nFailures+1, counter, 4)
 	counter++
 

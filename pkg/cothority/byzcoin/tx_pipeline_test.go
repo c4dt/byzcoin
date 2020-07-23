@@ -262,8 +262,8 @@ func testTxPipeline(t *testing.T, n, batch, failAt int, mock newMockTxProcFunc) 
 	}
 	sst, err := newMemStagingStateTrie([]byte(""))
 	require.NoError(t, err)
-	stopChan := make(chan bool)
-	pipelineDone := make(chan bool)
+	stopChan := make(chan struct{})
+	pipelineDone := make(chan struct{})
 	go func() {
 		pipeline.start(&txProcessorState{
 			sst: sst,

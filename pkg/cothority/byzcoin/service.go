@@ -385,7 +385,7 @@ func (s *Service) AddTransaction(req *AddTxRequest) (*AddTxResponse, error) {
 
 	gen := s.db().GetByID(req.SkipchainID)
 	if gen == nil || gen.Index != 0 {
-		return nil, xerrors.New("skipchain ID is does not exist")
+		return nil, xerrors.New("skipchain ID does not exist")
 	}
 
 	latest, err := s.db().GetLatest(gen)
@@ -439,6 +439,14 @@ func (s *Service) AddTransaction(req *AddTxRequest) (*AddTxResponse, error) {
 	// Else it will race when creating the Hash...
 	ctxHash := req.Transaction.Instructions.Hash()
 
+	interval, _, err := s.LoadBlockInfo(req.SkipchainID)
+	if err != nil {
+		return nil, xerrors.Errorf("couldn't get block info: %v", err)
+	}
+
+	ch := s.notifications.registerForBlocks()
+	defer s.notifications.unregisterForBlocks(ch)
+
 	if s.ServerIdentity().Equal(leader) {
 		s.txPipelinesMutex.Lock()
 		txp, ok := s.txPipeline[string(req.SkipchainID)]
@@ -458,15 +466,36 @@ func (s *Service) AddTransaction(req *AddTxRequest) (*AddTxResponse, error) {
 		if err != nil {
 			log.Lvlf2("root failed with %v - need to request a view-change",
 				err)
+
 			var err error
-			if req.Flags&1 > 0 {
-				err = s.startViewChange(req.SkipchainID, nil)
-			} else {
+			originalRequest := req.Flags&1 == 0
+			if originalRequest {
 				err = s.startViewChange(req.SkipchainID, &req.Transaction)
+			} else {
+				err = s.startViewChange(req.SkipchainID, nil)
 			}
 			if err != nil {
 				return nil, fmt.Errorf(
 					"leader failed and couldn't contact other nodes: %v", err)
+			}
+
+			if originalRequest {
+				// As this node might be the leader now,
+				// need to try again from scratch.
+				viewChangeWait := interval * time.Duration(len(latest.Roster.List)*2)
+				select {
+				case bl := <-ch:
+					log.Lvl2("Got new block while waiting for viewchange:",
+						bl.block.Index)
+				case <-time.After(viewChangeWait):
+					log.Error(s.ServerIdentity(),
+						"No new block - viewchange failed:")
+					return nil, fmt.Errorf("no viewchange during %v", viewChangeWait)
+				}
+
+				return s.AddTransaction(req)
+			} else {
+				return &AddTxResponse{}, nil
 			}
 		}
 	}
@@ -479,17 +508,9 @@ func (s *Service) AddTransaction(req *AddTxRequest) (*AddTxResponse, error) {
 	// add() after createWaitChannel() solves this, but then we need a second add() for the
 	// no inclusion wait case.
 	if req.InclusionWait > 0 {
+		// Wait for InclusionWait new blocks and look if our transaction is in it.
 		s.working.Add(1)
 		defer s.working.Done()
-
-		// Wait for InclusionWait new blocks and look if our transaction is in it.
-		interval, _, err := s.LoadBlockInfo(req.SkipchainID)
-		if err != nil {
-			return nil, xerrors.Errorf("couldn't get block info: %v", err)
-		}
-
-		ch := s.notifications.registerForBlocks()
-		defer s.notifications.unregisterForBlocks(ch)
 
 		// In case we don't have any blocks, because there are no transactions,
 		// have a hard timeout in twice the minimal expected time to create the
@@ -2672,6 +2693,8 @@ func (s *Service) startViewChange(gen skipchain.SkipBlockID,
 			LeaderIndex: 1,
 		},
 	}
+	log.Lvlf2("Starting a view-change by putting our own request"+
+		": %+v", req)
 	s.viewChangeMan.addReq(req)
 	if tx != nil {
 		cl := onet.NewClient(cothority.Suite, ServiceName)
@@ -2694,9 +2717,6 @@ func (s *Service) startViewChange(gen skipchain.SkipBlockID,
 						si, err)
 				}
 			}(si)
-			log.Lvlf2("Starting a view-change by putting our own request"+
-				": %+v", req)
-			s.viewChangeMan.addReq(req)
 		}
 	}
 	return nil

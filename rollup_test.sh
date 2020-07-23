@@ -1,9 +1,10 @@
 #!/bin/bash
 
 INTERVAL=c4dt/byzcoin:v3.4.5-200722-1540
-ROLLUP=c4dt/byzcoin:v3.4.5-200723-0921
+ROLLUP=c4dt/byzcoin:v3.4.5-200727-1200
 NODES=$(seq -f "node%g" 4)
 DATA=nodes
+BLOCK_INTERVAL=5s
 
 main(){
   cleanup
@@ -68,7 +69,7 @@ EOF
 
   echo "Creating new chain"
   rm -f *.cfg
-  ./bcadmin -c . create -i 1s roster.toml
+  ./bcadmin -c . create -i $BLOCK_INTERVAL roster.toml
 
   echo "Latest block"
   ./bcadmin debug list http://localhost:2001
@@ -89,8 +90,7 @@ docker_replace(){
     PORT=$((PORT + 10))
   done
 
-  echo "Waiting for startup of nodes"
-  sleep 5
+  ./bcadmin debug list -v http://localhost:2001
 }
 
 mint_coins(){
@@ -105,19 +105,23 @@ mint_coins(){
 switch_leader(){
   PORT=2000
   for n in $NODES; do
-    echo "Switching leader $n"
+    PORT_NEXT=$(( (((PORT-2000)+10) % 40) + 2001))
+    echo "Switching leader $n - next port: $PORT_NEXT"
     docker rm -f $n
 
-    echo "Minting some coins"
-    ./bcadmin mint bc-* key-* \
-    559cd91debcb38952632b509ee5e00624deac7275c7a986ebbe35bc2a6e3dfad 100
+    LEADER=$n
+    while [ $LEADER = $n ]; do
+      echo "Minting some coins for leader $LEADER"
+      ./bcadmin mint bc-* key-* \
+        559cd91debcb38952632b509ee5e00624deac7275c7a986ebbe35bc2a6e3dfad 100
 
-    echo "Latest block"
-    ./bcadmin debug list http://localhost:2001
-
-    exit
+      LEADER=$( ./bcadmin debug list -v http://localhost:$PORT_NEXT |
+        grep "Roster: " | sed -e "s;.*\[tls://\([^:]*\):.*;\1;" )
+      echo "New leader is: $LEADER"
+    done
 
     docker_start $ROLLUP $n $PORT
+    sleep 2
 
     PORT=$((PORT + 10))
   done
@@ -125,7 +129,9 @@ switch_leader(){
 
 main
 #cd $DATA
+#docker rm -f node4
+#docker_start $ROLLUP node4 2030
 #switch_leader
-#docker_start $ROLLUP node1 2000
+#docker_start $ROLLUP node4 2030
 #docker rm -f node2
 #
