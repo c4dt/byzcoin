@@ -385,7 +385,7 @@ func (s *Service) AddTransaction(req *AddTxRequest) (*AddTxResponse, error) {
 
 	gen := s.db().GetByID(req.SkipchainID)
 	if gen == nil || gen.Index != 0 {
-		return nil, xerrors.New("skipchain ID is does not exist")
+		return nil, xerrors.New("skipchain ID does not exist")
 	}
 
 	latest, err := s.db().GetLatest(gen)
@@ -439,6 +439,14 @@ func (s *Service) AddTransaction(req *AddTxRequest) (*AddTxResponse, error) {
 	// Else it will race when creating the Hash...
 	ctxHash := req.Transaction.Instructions.Hash()
 
+	interval, _, err := s.LoadBlockInfo(req.SkipchainID)
+	if err != nil {
+		return nil, xerrors.Errorf("couldn't get block info: %v", err)
+	}
+
+	ch := s.notifications.registerForBlocks()
+	defer s.notifications.unregisterForBlocks(ch)
+
 	if s.ServerIdentity().Equal(leader) {
 		s.txPipelinesMutex.Lock()
 		txp, ok := s.txPipeline[string(req.SkipchainID)]
@@ -458,16 +466,37 @@ func (s *Service) AddTransaction(req *AddTxRequest) (*AddTxResponse, error) {
 		if err != nil {
 			log.Lvlf2("root failed with %v - need to request a view-change",
 				err)
+
 			var err error
-			if req.Flags&1 > 0 {
-				err = s.startViewChange(req.SkipchainID, nil)
-			} else {
+			originalRequest := req.Flags&1 == 0
+			if originalRequest {
 				err = s.startViewChange(req.SkipchainID, &req.Transaction)
+			} else {
+				err = s.startViewChange(req.SkipchainID, nil)
 			}
 			if err != nil {
 				return nil, fmt.Errorf(
 					"leader failed and couldn't contact other nodes: %v", err)
 			}
+
+			if originalRequest {
+				// As this node might be the leader now,
+				// need to try again from scratch.
+				viewChangeWait := interval * time.Duration(len(latest.Roster.
+					List)*4)
+				select {
+				case bl := <-ch:
+					log.Lvl2("Got new block while waiting for viewchange:",
+						bl.block.Index)
+				case <-time.After(viewChangeWait):
+					log.Error(s.ServerIdentity(),
+						"No new block - viewchange failed:")
+					return nil, fmt.Errorf("no viewchange during %v", viewChangeWait)
+				}
+
+				return s.AddTransaction(req)
+			}
+			return &AddTxResponse{}, nil
 		}
 	}
 
@@ -479,17 +508,9 @@ func (s *Service) AddTransaction(req *AddTxRequest) (*AddTxResponse, error) {
 	// add() after createWaitChannel() solves this, but then we need a second add() for the
 	// no inclusion wait case.
 	if req.InclusionWait > 0 {
+		// Wait for InclusionWait new blocks and look if our transaction is in it.
 		s.working.Add(1)
 		defer s.working.Done()
-
-		// Wait for InclusionWait new blocks and look if our transaction is in it.
-		interval, _, err := s.LoadBlockInfo(req.SkipchainID)
-		if err != nil {
-			return nil, xerrors.Errorf("couldn't get block info: %v", err)
-		}
-
-		ch := s.notifications.registerForBlocks()
-		defer s.notifications.unregisterForBlocks(ch)
 
 		// In case we don't have any blocks, because there are no transactions,
 		// have a hard timeout in twice the minimal expected time to create the
@@ -755,15 +776,12 @@ func (s *Service) DownloadState(req *DownloadState) (resp *DownloadStateResponse
 		Nonce: s.downloadState.nonce,
 		Total: s.downloadState.total,
 	}
-query:
 	for i := 0; i < req.Length; i++ {
-		select {
-		case kv, ok := <-s.downloadState.read:
-			if !ok {
-				break query
-			}
-			resp.KeyValues = append(resp.KeyValues, kv)
+		kv, ok := <-s.downloadState.read
+		if !ok {
+			break
 		}
+		resp.KeyValues = append(resp.KeyValues, kv)
 	}
 	return
 }
@@ -1388,7 +1406,7 @@ func (s *Service) catchupAll() error {
 		for i, node := range sb.Roster.List {
 			cl.UseNode(i)
 			replyTmp, err := cl.GetUpdateChain(sb.Roster, sb.Hash)
-			if err != nil || replyTmp == nil {
+			if err != nil {
 				log.Warn("couldn't get update from", node)
 				continue
 			}
@@ -1665,8 +1683,8 @@ func (s *Service) updateTrieCallback(sbID skipchain.SkipBlockID) error {
 		return nil
 	} else if sb.Index > trieIndex+1 {
 		log.Warn(s.ServerIdentity(), "Got new block while catching up - ignoring block for now")
+		s.working.Add(1)
 		go func() {
-			s.working.Add(1)
 			defer s.working.Done()
 
 			// This new block will catch up at the end of the current catch up (if any)
@@ -1952,10 +1970,12 @@ func loadBlockInfo(st ReadOnlyStateTrie) (time.Duration, int, error) {
 func (s *Service) startTxPipeline(scID skipchain.SkipBlockID) chan struct{} {
 	latest, err := s.db().GetLatestByID(scID)
 	if err != nil {
-		log.Errorf("Error while searching for %x", scID[:])
-		log.Error("DB is in bad state and cannot find skipchain anymore."+
-			" This function should never be called on a skipchain that does not exist.", err)
-		panic("DB is in bad state and cannot find skipchain anymore.")
+		log.Panicf("Fatal error while searching for skipchain %x: %+v\n"+
+			"DB is in bad state and cannot find skipchain anymore."+
+			" This function should never be called on a skipchain that does"+
+			" not exist. DB is in bad state and cannot find skipchain"+
+			" anymore.",
+			scID[:], err)
 	}
 
 	pipeline := newTxPipeline(s, latest)
@@ -1966,13 +1986,13 @@ func (s *Service) startTxPipeline(scID skipchain.SkipBlockID) chan struct{} {
 	if err != nil {
 		panic("the state trie must exist because we only start polling after creating/loading the skipchain")
 	}
-	initialState := txProcessorState{
+	initialState := proposedTransactions{
 		sst: st.MakeStagingStateTrie(),
 	}
 
 	stopChan := make(chan struct{})
+	s.stopTxPipelineWG.Add(1)
 	go func() {
-		s.stopTxPipelineWG.Add(1)
 		defer s.stopTxPipelineWG.Done()
 
 		s.closedMutex.Lock()
@@ -1994,7 +2014,8 @@ func (s *Service) startTxPipeline(scID skipchain.SkipBlockID) chan struct{} {
 func (s *Service) verifySkipBlock(newID []byte, newSB *skipchain.SkipBlock) bool {
 	start := time.Now()
 	defer func() {
-		log.Lvlf3("%s Verify done after %s", s.ServerIdentity(), time.Now().Sub(start))
+		log.Lvlf3("%s Verify done after %s", s.ServerIdentity(),
+			time.Since(start))
 	}()
 
 	header, err := decodeBlockHeader(newSB)
@@ -2097,16 +2118,16 @@ func (s *Service) verifySkipBlock(newID []byte, newSB *skipchain.SkipBlock) bool
 	}
 
 	// Check that the hashes in DataHeader are right.
-	if bytes.Compare(header.ClientTransactionHash, txOut.Hash()) != 0 {
+	if !bytes.Equal(header.ClientTransactionHash, txOut.Hash()) {
 		log.Lvl2(s.ServerIdentity(), "Client Transaction Hash doesn't verify")
 		return false
 	}
 
-	if bytes.Compare(header.TrieRoot, mtr) != 0 {
+	if !bytes.Equal(header.TrieRoot, mtr) {
 		log.Lvl2(s.ServerIdentity(), "Trie root doesn't verify")
 		return false
 	}
-	if bytes.Compare(header.StateChangesHash, scs.Hash()) != 0 {
+	if !bytes.Equal(header.StateChangesHash, scs.Hash()) {
 		log.Lvl2(s.ServerIdentity(), "State Changes hash doesn't verify")
 		return false
 	}
@@ -2206,13 +2227,11 @@ func (s *Service) createStateChanges(sst *stagingStateTrie, scID skipchain.SkipB
 		return
 	}
 	log.Lvl3(s.ServerIdentity(), "state changes from cache: MISS")
-	err = nil
 
 	var maxsz, blocksz int
-	_, maxsz, err = loadBlockInfo(sst)
 	// no error or expected "no trie" err, so keep going with the
 	// maxsz we got.
-	err = nil
+	_, maxsz, _ = loadBlockInfo(sst)
 
 	deadline := time.Now().Add(timeout)
 
@@ -2493,11 +2512,11 @@ func (s *Service) executeInstruction(gs GlobalState, cin []Coin,
 			// Special case 1: first time call to
 			// genesis-configuration must return correct contract
 			// type.
-			contractFactory, exists = s.GetContractConstructor(ContractConfigID)
+			contractFactory, _ = s.GetContractConstructor(ContractConfigID)
 		} else if NamingInstanceID.Equal(instr.InstanceID) {
 			// Special case 2: first time call to the naming
 			// contract must return the correct type too.
-			contractFactory, exists = s.GetContractConstructor(ContractNamingID)
+			contractFactory, _ = s.GetContractConstructor(ContractNamingID)
 		} else {
 			// If the leader does not have a verifier for this
 			// contract, it drops the transaction.
@@ -2672,32 +2691,33 @@ func (s *Service) startViewChange(gen skipchain.SkipBlockID,
 			LeaderIndex: 1,
 		},
 	}
+	log.Lvlf2("Starting a view-change by putting our own request"+
+		": %+v", req)
 	s.viewChangeMan.addReq(req)
-	if tx != nil {
-		cl := onet.NewClient(cothority.Suite, ServiceName)
-		buf, err := protobuf.Encode(&AddTxRequest{
-			Version:       CurrentVersion,
-			SkipchainID:   latest.SkipChainID(),
-			Transaction:   *tx,
-			InclusionWait: 0,
-			Flags:         1,
-		})
-		if err != nil {
-			return fmt.Errorf("couldn't encode request: %v", err)
-		}
-		for _, si := range latest.Roster.List[1:] {
-			go func(si *network.ServerIdentity) {
-				log.Lvl2(s.ServerIdentity(), "sending addTxRequest to", si)
-				_, err := cl.Send(si, "AddTxRequest", buf)
-				if err != nil {
-					log.Error(s.ServerIdentity(), "couldn't send transaction to",
-						si, err)
-				}
-			}(si)
-			log.Lvlf2("Starting a view-change by putting our own request"+
-				": %+v", req)
-			s.viewChangeMan.addReq(req)
-		}
+
+	if tx == nil {
+		return nil
+	}
+	cl := onet.NewClient(cothority.Suite, ServiceName)
+	buf, err := protobuf.Encode(&AddTxRequest{
+		Version:       CurrentVersion,
+		SkipchainID:   latest.SkipChainID(),
+		Transaction:   *tx,
+		InclusionWait: 0,
+		Flags:         1,
+	})
+	if err != nil {
+		return fmt.Errorf("couldn't encode request: %v", err)
+	}
+	for _, si := range latest.Roster.List[1:] {
+		go func(si *network.ServerIdentity) {
+			log.Lvl2(s.ServerIdentity(), "sending addTxRequest to", si)
+			_, err := cl.Send(si, "AddTxRequest", buf)
+			if err != nil {
+				log.Error(s.ServerIdentity(), "couldn't send transaction to",
+					si, err)
+			}
+		}(si)
 	}
 	return nil
 }
@@ -2740,10 +2760,10 @@ func (s *Service) startAllChains() error {
 
 	// All the logic necessary to start the chains is delayed to a goroutine so that
 	// the other services can start immediately and are not blocked by Byzcoin.
+	s.working.Add(1)
 	go func() {
 		s.txPipelinesMutex.Lock()
 		defer s.txPipelinesMutex.Unlock()
-		s.working.Add(1)
 		defer s.working.Done()
 
 		// Catch up is done before starting the chains to prevent undesired events

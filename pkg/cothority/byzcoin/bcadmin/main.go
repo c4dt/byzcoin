@@ -88,7 +88,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("error: %+v", err)
 	}
-	return
 }
 
 func create(c *cli.Context) error {
@@ -220,7 +219,7 @@ func link(c *cli.Context) error {
 			"of the given skipchain-id")
 	}
 
-	newDarc := &darc.Darc{}
+	var newDarc *darc.Darc
 
 	dstr := c.String("darc")
 	if dstr == "" {
@@ -729,6 +728,9 @@ func mint(c *cli.Context) error {
 		},
 		SignerCounter: counters,
 	})
+	if err != nil {
+		return fmt.Errorf("couldn't create mint transaction: %v", err)
+	}
 	err = ctx.FillSignersAndSignWith(*signer)
 	if err != nil {
 		return err
@@ -954,6 +956,9 @@ func darcCdesc(c *cli.Context) error {
 	}
 
 	counters, err := cl.GetSignerCounters(signer.Identity().String())
+	if err != nil {
+		return fmt.Errorf("couldn't get signer counters: %v", err)
+	}
 
 	invoke := byzcoin.Invoke{
 		ContractID: byzcoin.ContractDarcID,
@@ -1388,6 +1393,9 @@ func darcAdd(c *cli.Context) error {
 	instID := byzcoin.NewInstanceID(dSpawn.GetBaseID())
 
 	counters, err := cl.GetSignerCounters(signer.Identity().String())
+	if err != nil {
+		return fmt.Errorf("couldn't get signer counters: %v", err)
+	}
 
 	spawn := byzcoin.Spawn{
 		ContractID: byzcoin.ContractDarcID,
@@ -1537,6 +1545,9 @@ func darcRule(c *cli.Context) error {
 	}
 
 	counters, err := cl.GetSignerCounters(signer.Identity().String())
+	if err != nil {
+		return fmt.Errorf("couldn't get signer counters: %v", err)
+	}
 
 	command := "evolve_unrestricted"
 	if c.Bool("restricted") {
@@ -1654,14 +1665,16 @@ func qrcode(c *cli.Context) error {
 				Pub:  signer.Identity().String(),
 			},
 		})
+		if err != nil {
+			return fmt.Errorf("couldn't marshal adminconfig: %v", err)
+		}
 	} else {
 		toWrite, err = json.Marshal(baseconfig{
 			ByzCoinID: cfg.ByzCoinID,
 		})
-	}
-
-	if err != nil {
-		return err
+		if err != nil {
+			return fmt.Errorf("couldn't marshal baseconfig: %v", err)
+		}
 	}
 
 	qr, err := qrgo.NewQR(string(toWrite))

@@ -3,6 +3,7 @@ package messaging
 import (
 	"errors"
 	"fmt"
+	"go.dedis.ch/cothority/v3/blscosi/protocol"
 	"reflect"
 	"strings"
 	"sync"
@@ -82,7 +83,7 @@ func NewPropagationFunc(c propagationContext, name string, f PropagationStore, t
 		// Make a local copy in order to avoid a data race.
 		t := thresh
 		if t == -1 {
-			t = (len(n.Roster().List) - 1) / 3
+			t = protocol.DefaultFaultyThreshold(len(n.Roster().List))
 		}
 		p := &Propagate{
 			sd:               &PropagateSendData{[]byte{}, initialWait},
@@ -105,7 +106,12 @@ func NewPropagationFunc(c propagationContext, name string, f PropagationStore, t
 		if rooted == nil {
 			return 0, errors.New("we're not in the roster")
 		}
-		tree := rooted.GenerateNaryTree(8)
+		// Make a star (tree with height 1)
+		// TODO: it would be nice to search for a nice method to convert a
+		// list of nodes, a minimum branching-factor,
+		// and the maximum number of failing nodes into an optimal tree where
+		// most of the nodes appear more than once.
+		tree := rooted.GenerateNaryTree(len(el.List))
 		if tree == nil {
 			return 0, errors.New("Didn't find root in tree")
 		}
@@ -147,15 +153,14 @@ func propagateStartAndWait(pi onet.ProtocolInstance, msg network.Message, to tim
 // Start will contact everyone and make the connections
 func (p *Propagate) Start() error {
 	log.Lvl4("going to contact", p.Root().ServerIdentity)
-	p.SendTo(p.Root(), p.sd)
-	return nil
+	return p.SendTo(p.Root(), p.sd)
 }
 
 // Dispatch can handle timeouts
 func (p *Propagate) Dispatch() error {
 	process := true
 	var received int
-	log.Lvl4(p.ServerIdentity(), "Start dispatch")
+	log.Lvl4(p.ServerIdentity(), "Starting dispatch as root:", p.IsRoot())
 	defer p.Done()
 	defer func() {
 		if p.IsRoot() {
@@ -181,7 +186,8 @@ func (p *Propagate) Dispatch() error {
 				continue
 			}
 			gotSendData = true
-			log.Lvl3(p.ServerIdentity(), "Got data from", msg.ServerIdentity, "and setting timeout to", msg.Timeout)
+			log.Lvl3(p.ServerIdentity(), "Got data from",
+				msg.ServerIdentity, "and setting timeout to", msg.Timeout)
 			p.sd.Timeout = msg.Timeout
 			if p.onData != nil {
 				_, netMsg, err := network.Unmarshal(msg.Data, p.Suite())
@@ -199,20 +205,17 @@ func (p *Propagate) Dispatch() error {
 				if err := p.SendToParent(&PropagateReply{}); err != nil {
 					return err
 				}
-			}
-			if p.IsLeaf() {
 				process = false
-			} else {
-				log.Lvl3(p.ServerIdentity(), "Sending to children")
-				if errs = p.SendToChildrenInParallel(&msg.PropagateSendData); len(errs) != 0 {
-					var errsStr []string
-					for _, e := range errs {
-						errsStr = append(errsStr, e.Error())
-					}
-					if len(errs) > p.allowedFailures {
-						return errors.New(strings.Join(errsStr, "\n"))
-					}
-					log.Lvl2("Error while sending to children:", errsStr)
+			}
+			log.Lvl3(p.ServerIdentity(), "Sending to children", p.Children())
+			if errs = p.SendToChildrenInParallel(&msg.PropagateSendData); len(errs) != 0 {
+				errsStr := make([]string, len(errs))
+				for i, e := range errs {
+					errsStr[i] = e.Error()
+				}
+				log.Lvl2("Error while sending to children:", errsStr)
+				if len(errs) > p.allowedFailures {
+					return errors.New(strings.Join(errsStr, "\n"))
 				}
 			}
 		case <-p.ChannelReply:
@@ -232,7 +235,7 @@ func (p *Propagate) Dispatch() error {
 				process = false
 			}
 		case <-time.After(timeout):
-			if received < subtreeCount-p.allowedFailures {
+			if received+1 < subtreeCount-p.allowedFailures {
 				_, _, err := network.Unmarshal(p.sd.Data, p.Suite())
 				return fmt.Errorf("Timeout of %s reached, got %v but need %v, err: %v",
 					timeout, received, subtreeCount-p.allowedFailures, err)

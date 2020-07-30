@@ -117,6 +117,14 @@ func (ctx *ClientTransaction) SignWith(signers ...darc.Signer) error {
 	return nil
 }
 
+// Clone creates a deep clone of the ClientTransaction - mostly used in the
+// tests.
+func (ctx *ClientTransaction) Clone() ClientTransaction {
+	newCtx := ClientTransaction{}
+	newCtx.Instructions = append(newCtx.Instructions, ctx.Instructions...)
+	return newCtx
+}
+
 // NewClientTransaction creates a transaction compatible with the version passed
 // in arguments. Depending on the version, the hash will have a different value.
 // Most common usage is:

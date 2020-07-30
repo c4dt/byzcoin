@@ -833,18 +833,16 @@ func waitInclusion(t *testing.T, client int) {
 	// transactions to end up in two blocks.
 	log.Lvl1("Create transaction and don't wait")
 	counter++
-	{
-		tx, err := createOneClientTxWithCounter(s.darc.GetBaseID(), dummyContract, s.value, s.signer, counter)
-		require.NoError(t, err)
-		ser := s.services[client]
-		resp, err := ser.AddTransaction(&AddTxRequest{
-			Version:       CurrentVersion,
-			SkipchainID:   s.genesis.SkipChainID(),
-			Transaction:   tx,
-			InclusionWait: 0,
-		})
-		transactionOK(t, resp, err)
-	}
+	tx, err := createOneClientTxWithCounter(s.darc.GetBaseID(), dummyContract, s.value, s.signer, counter)
+	require.NoError(t, err)
+	ser := s.services[client]
+	resp, err := ser.AddTransaction(&AddTxRequest{
+		Version:       CurrentVersion,
+		SkipchainID:   s.genesis.SkipChainID(),
+		Transaction:   tx,
+		InclusionWait: 0,
+	})
+	transactionOK(t, resp, err)
 
 	log.Lvl1("Create correct transaction and wait")
 	counter++
@@ -1620,7 +1618,9 @@ func TestService_SetConfigRosterKeepLeader(t *testing.T) {
 		log.Lvl2("Verifying the correct roster is in place")
 		latest, err := s.service().db().GetLatestByID(s.genesis.Hash)
 		require.NoError(t, err)
-		require.True(t, latest.Roster.ID.Equal(rosterR.ID), "roster has not been updated")
+		equals, err := latest.Roster.Equal(rosterR)
+		require.NoError(t, err)
+		require.True(t, equals, "roster has not been updated")
 	}
 }
 
@@ -1639,7 +1639,9 @@ func TestService_SetConfigRosterNewLeader(t *testing.T) {
 		log.Lvl2("Verifying the correct roster is in place")
 		latest, err := s.service().db().GetLatestByID(s.genesis.Hash)
 		require.NoError(t, err)
-		require.True(t, latest.Roster.ID.Equal(rosterR.ID), "roster has not been updated")
+		equals, err := latest.Roster.Equal(rosterR)
+		require.NoError(t, err)
+		require.True(t, equals, "roster has not been updated")
 	}
 }
 
@@ -1691,7 +1693,9 @@ func TestService_SetConfigRosterNewNodes(t *testing.T) {
 		log.Lvl2("Verifying the correct roster is in place")
 		latest, err := s.service().db().GetLatestByID(s.genesis.Hash)
 		require.NoError(t, err)
-		require.True(t, latest.Roster.ID.Equal(rosterR.ID), "roster has not been updated")
+		equals, err := latest.Roster.Equal(rosterR)
+		require.NoError(t, err)
+		require.True(t, equals, "roster has not been updated")
 		// Get latest genesis darc and verify the 'view_change' rule is updated
 		st, err := s.service().GetReadOnlyStateTrie(s.genesis.Hash)
 		require.NoError(t, err)
@@ -1769,6 +1773,7 @@ func TestService_SetConfigRosterSwitchNodes(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Contains(t, resp.Error, "new leader must be in previous roster")
+	s.waitPropagation(t, 0)
 
 	log.Lvl1("Allow new nodes at the end", newRoster.List)
 	goodRoster := onet.NewRoster(s.roster.List)
@@ -1780,6 +1785,7 @@ func TestService_SetConfigRosterSwitchNodes(t *testing.T) {
 		counter++
 		s.sendTxAndWait(t, ctx, 10)
 	}
+	s.waitPropagation(t, 0)
 }
 
 // Replaces all nodes from the previous roster with new nodes
@@ -2131,9 +2137,7 @@ func TestService_DownloadState(t *testing.T) {
 //   1. what if a leader fails and wants to catch up
 //   2. if the catchupFetchDBEntries = 1, it fails
 func TestService_DownloadStateRunning(t *testing.T) {
-
-	// Disabled because it is flaky. See issue.
-	t.Skip("https://github.com/dedis/cothority/issues/2129")
+	t.Skip("Disabled because deleteDBs does something strange - bitrot :(")
 
 	cda := catchupDownloadAll
 	defer func() {

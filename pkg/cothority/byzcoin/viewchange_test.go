@@ -2,10 +2,11 @@ package byzcoin
 
 import (
 	"fmt"
-	"go.dedis.ch/cothority/v3/skipchain"
 	"math"
 	"testing"
 	"time"
+
+	"go.dedis.ch/cothority/v3/skipchain"
 
 	"github.com/stretchr/testify/require"
 	"go.dedis.ch/cothority/v3/byzcoin/viewchange"
@@ -31,7 +32,7 @@ func TestViewChange_Basic2(t *testing.T) {
 		t.Skip("protocol timeout too short for Travis")
 	}
 
-	testViewChange(t, 7, 2, 4*testInterval)
+	testViewChange(t, 7, 2, testInterval)
 }
 
 func TestViewChange_Basic3(t *testing.T) {
@@ -41,7 +42,7 @@ func TestViewChange_Basic3(t *testing.T) {
 
 	// Enough nodes and failing ones to test what happens when propagation
 	// fails due to offline nodes in the higher level of the tree.
-	testViewChange(t, 10, 3, 4*testInterval)
+	testViewChange(t, 10, 3, 2*testInterval)
 }
 
 func testViewChange(t *testing.T, nHosts, nFailures int, interval time.Duration) {
@@ -73,15 +74,16 @@ func testViewChange(t *testing.T, nHosts, nFailures int, interval time.Duration)
 	require.NoError(t, err)
 	s.sendTxTo(t, tx0, nFailures)
 
-	log.Lvl1("Waiting for the propagation to be finished")
-	time.Sleep(s.interval * rw * time.Duration(math.Pow(2, float64(nFailures+1))))
+	sl := s.interval * rw * time.Duration(math.Pow(2, float64(nFailures)))
+	log.Lvl1("Waiting for the propagation to be finished during", sl)
+	time.Sleep(sl)
 	s.waitPropagation(t, 1)
 	gucr, err := s.services[nFailures].skService().GetUpdateChain(&skipchain.
 		GetUpdateChain{LatestID: s.genesis.SkipChainID()})
 	require.NoError(t, err)
 
 	newRoster := gucr.Update[len(gucr.Update)-1].Roster
-	log.Lvl2("Verifying roster", newRoster)
+	log.Lvl1("Verifying roster", newRoster)
 	sameRoster, err := newRoster.Equal(s.roster)
 	require.NoError(t, err)
 	require.False(t, sameRoster)
@@ -92,8 +94,10 @@ func testViewChange(t *testing.T, nHosts, nFailures int, interval time.Duration)
 	// a follower (not the new leader)
 	log.Lvl1("Sending a transaction to the node after the new leader")
 	tx1ID := NewInstanceID([]byte{2}).Slice()
-	tx1, err := createOneClientTx(s.darc.GetBaseID(), dummyContract, tx1ID,
-		s.signer)
+	counter := uint64(2)
+	tx1, err := createOneClientTxWithCounter(s.darc.GetBaseID(), dummyContract, tx1ID,
+		s.signer, counter)
+	counter++
 	require.NoError(t, err)
 	s.sendTxTo(t, tx1, nFailures+1)
 
@@ -111,7 +115,6 @@ func testViewChange(t *testing.T, nHosts, nFailures int, interval time.Duration)
 	}
 
 	log.Lvl1("Creating new TX")
-	counter := uint64(2)
 	s.sendDummyTx(t, nFailures+1, counter, 4)
 	counter++
 
@@ -132,12 +135,11 @@ func testViewChange(t *testing.T, nHosts, nFailures int, interval time.Duration)
 
 	time.Sleep(3 * time.Second)
 
-	log.Lvl1("Adding a new tx for the resurrected nodes to catch up")
-	s.sendDummyTx(t, nFailures+1, counter, 4)
-	counter++
-	log.Lvl1("Adding a new tx for the resurrected nodes to catch up")
-	s.sendDummyTx(t, nFailures+1, counter, 4)
-	counter++
+	log.Lvl1("Adding two new tx for the resurrected nodes to catch up")
+	for tx := 0; tx < 2; tx++ {
+		s.sendDummyTx(t, nFailures, counter, 4)
+		counter++
+	}
 
 	log.Lvl1("Make sure resurrected nodes have caught up")
 	for i := 0; i < nFailures; i++ {
@@ -148,7 +150,6 @@ func testViewChange(t *testing.T, nHosts, nFailures int, interval time.Duration)
 
 	log.Lvl1("Two final transactions")
 	for tx := 0; tx < 2; tx++ {
-		log.Lvlf1("Sending tx %d", tx)
 		s.sendDummyTx(t, nFailures, counter, 4)
 		counter++
 	}
