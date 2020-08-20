@@ -56,7 +56,7 @@ test:
 docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
 	docker run -ti --rm -v "$$PWD":/usr/src/myapp \
 		-v "$$PWD"/.godocker:/go \
-		-w /usr/src/myapp golang:1.14 \
+		-w /usr/src/myapp golang:1.15 \
 		sh -c "go build -ldflags='$(ldflags)' ./cmd/byzcoin; \
 		cd pkg/cothority; go build -ldflags='$(ldflags)' ./byzcoin/bcadmin; \
 		cd scmgr; go build -ldflags='$(ldflags)' ."
@@ -73,3 +73,10 @@ docker: docker/built
 docker-push: docker
 	docker push $(DOCKER_NAME):latest
 	docker push $(DOCKER_NAME):$(DOW)
+
+docker-push-all: docker-push
+	@for d in Sun Mon Tue Wed Thu Fri Sat; do \
+		echo "Creating docker-image for $$d"; \
+		docker tag $(DOCKER_NAME):latest $(DOCKER_NAME):$$d; \
+		docker push $(DOCKER_NAME):$$d; \
+	done
