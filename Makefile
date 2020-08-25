@@ -2,7 +2,7 @@ CONTAINER = byzcoin
 IMAGE_NAME = c4dt/$(CONTAINER)
 VERSION = $(shell git -C upstream/cothority fetch --tags; \
 	git -C upstream/cothority tag | sort | tail -n 1 )
-TAG := $(VERSION)-$(shell date +%y%m%d-%H%M)
+TAG := $(VERSION)-$(shell date -v Mon +%y%m%d)
 DOCKER_NAME = $(IMAGE_NAME)
 DOW = $(shell date +%a)
 
@@ -67,14 +67,21 @@ docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
 
 docker: docker/built
 	docker build -t $(DOCKER_NAME):$(TAG) docker
-	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):$(DOW)
 	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):latest
 
-docker-push: docker
+docker-push-new: docker
+	docker push $(DOCKER_NAME):$(TAG)
 	docker push $(DOCKER_NAME):latest
+
+docker-push-dow:
+	docker pull $(DOCKER_NAME):$(TAG)
+	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):$(DOW)
 	docker push $(DOCKER_NAME):$(DOW)
 
-docker-push-all: docker-push
+taghm:
+	TAG := $(VERSION)-$(shell date +%y%m%d-%H%M)
+
+docker-push-all: taghm docker-push
 	@for d in Sun Mon Tue Wed Thu Fri Sat; do \
 		echo "Creating docker-image for $$d"; \
 		docker tag $(DOCKER_NAME):latest $(DOCKER_NAME):$$d; \

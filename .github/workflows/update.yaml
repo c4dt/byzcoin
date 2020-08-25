@@ -1,0 +1,33 @@
+name: update-code
+
+on:
+  schedule:
+    - cron: '05 13 * * 2'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Fetch latest code
+        run: make update
+
+      - name: Set git credentials
+        uses: oleksiyrudenko/gha-git-credentials@v1
+        with:
+          token: '${{ secrets.GITHUB_TOKEN }}'
+      - name: Update github repo
+        run: |
+          git add .
+          git commit -am "Automatic update on $( date )"
+
+      - name: Set docker credentials
+        uses: crazy-max/ghaction-docker-login@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - name: Push new docker image
+        run: make docker-push-new
