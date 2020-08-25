@@ -2,7 +2,7 @@ CONTAINER = byzcoin
 IMAGE_NAME = c4dt/$(CONTAINER)
 VERSION = $(shell git -C upstream/cothority fetch --tags; \
 	git -C upstream/cothority tag | sort | tail -n 1 )
-TAG := $(VERSION)-$(shell date -v Mon +%y%m%d)
+TAG := $(VERSION)-$(shell date --date "last Monday" +%u%m%d || date -v Mon +%y%m%d)
 DOCKER_NAME = $(IMAGE_NAME)
 DOW = $(shell date +%a)
 
@@ -54,7 +54,7 @@ test:
 	cd cmd/byzcoin && ./test.sh -b
 
 docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
-	docker run -ti --rm -v "$$PWD":/usr/src/myapp \
+	docker run --rm -v "$$PWD":/usr/src/myapp \
 		-v "$$PWD"/.godocker:/go \
 		-w /usr/src/myapp golang:1.15 \
 		sh -c "go build -ldflags='$(ldflags)' ./cmd/byzcoin; \
@@ -70,8 +70,10 @@ docker: docker/built
 	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):latest
 
 docker-push-new: docker
+	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):Mon
 	docker push $(DOCKER_NAME):$(TAG)
 	docker push $(DOCKER_NAME):latest
+	docker push $(DOCKER_NAME):Mon
 
 docker-push-dow:
 	docker pull $(DOCKER_NAME):$(TAG)

@@ -10,18 +10,8 @@ jobs:
   - stage: test
     name: Byzcoin
     language: go
-    go: 1.14.x
+    go: 1.15.x
     script: make update && cd cmd/byzcoin && ./test.sh
-
-  - name: Replay
-    language: go
-    go: 1.14.x
-    script:
-    - make update
-    - "( cd upstream/cothority; go build -o ../../bcadmin ./byzcoin/bcadmin )"
-    - wget --progress=dot:giga https://demo.c4dt.org/omniledger/cached.db
-    - if [ "$TRAVIS_BRANCH" != master ]; then export BLOCKS="--blocks 2048"; fi
-    - ./bcadmin --debug 1 db replay cached.db --summarize 100 $BLOCKS 9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3
 
 notifications:
   email: false
@@ -32,8 +22,3 @@ cache:
   - "$HOME/.cache/go-build"
   - "$GOPATH/pkg/mod"
   - "$HOME/.cache"
-
-env:
-  global:
-  - secure: Sz1oGcAdY7WxW8eomikx5Tp/+KEzosMN7aAua2HMHnJ8k6r1EcfApLRyARIOvm2GdwndKWiEeC6440y+7gdcuRkXb3XgwOrw0NhBL3BbsyMiDWo0ehTC6or899glmUtY7BhTRTllwaxR2wRLJxBbA7ENMRglQ6MASfTJSnYpf7RTHO3Fo+VCo212YOZN03Jea7xrXF8JKPzCoi/I1/gxxFx86OZJEqsnoSomqRzmfIvshff3xS1dEgWBmpQUYdpO9vC1iFoaQLR6kfVsZsbIAXyezQT9drsJVeB8vNPwjMxX3mfKtoPh5fVa1pOqHaZ6o+Wl5s5wK1nGwbfL9JMOxEp9hYBXvc4I7biZO3J8frws9Y7XxllZbM2lJugpTUq0ZRcVGrESTB/TLTSjk3fDWDA4gEGyef6Y/Jb2+J2ZLrxnHKW5y4R06AXCPff/JCuOriMS34aQW9/0/uRwbH628f/rAbtEfryNNDAgpKhBC12yHd/k/A+od8iY1lk4xtohLYkF1b91QxK7qC3lDGp0fl76tyj1KQSnVl8VqyysCqDaY6/zXEPmNGqSn2qZd6VecOKeOVinYDfSDd09IIVY9oJ1h/M8ZejSK4AszK+RMEp0UIOJ+Dv9UR9NpSiN6FaIYyEMHirXnGABHI0xMVh+T2r+5OZ4ZbDrGO1/OR5P1vw=
-  - secure: Dk6ba/Pb2mLBWiOpMYohsDl9GcmJxMD4raDx6exo1KG+mpBdxOP1KYFsmw7D/Zr/got6cMoi2Crl5IcqUCy8vBP4HTK3kWZbPQwXYmpkyfUgQCbd/QKq3sCtm1dQCt9BZ4z2gGYeQvA3ZYHWLYSdsgS+5JY20Kvav11+0GQ2qGg9CFL/TOBPKcvLBz81/XFTzlul2Np/dDd4bmLinwJYn4Ij6lSf8HEyoeHzkFWgGoB7LLjs0xoZY/aN1l0mfRF/fHH3uTSCKkizPjVyAUoKx0NcQ6sK3TUwTJwGBapSmmfmZoGWv88IKbnaybVTXxjozpLnt9tFiw7FrvdreiJaHIEqQsbAsbknpA+3A8P5ZUHw3VM/Y01zIq515HvCEG/21WHPPWgrczX7XKwe24uQG5IN1FEVORNmJaOPigeVGRMJdwNSmHuVqBAzk83hkmC4ob0qFBrhQLMewo0XqdxDH/Qk+5AHPshNfELfALDNvzBMUDBhCHjSRfVFS38kVSKBj31GTdBlXpmcGYaTqG02/OIsAp/CJv1/bttFEv+V6BGs3uBKuIs+aqzBAVCje5YM3XmrjBV8+WVPHc6gKPRGRWvbwEKLEMi/mYFb1KRz6vHU2j5Dguguv7Zh3CV3aYl8GMXErf7gfoZmlfjypCb0iR44ACgVY25ep5xrU9pklKM=
