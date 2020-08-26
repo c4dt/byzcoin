@@ -1,11 +1,12 @@
 CONTAINER = byzcoin
 IMAGE_NAME = c4dt/$(CONTAINER)
-VERSION = $(shell git -C upstream/cothority fetch --tags; \
+VERSION := $(shell git -C upstream/cothority fetch --tags; \
 	git -C upstream/cothority tag | sort | tail -n 1 )
+# mac date doesn't know about --date argument...
 TAG := $(VERSION)-$(shell date --date "last Monday" +%y%m%d || \
 	date -v Mon +%y%m%d)
 DOCKER_NAME = $(IMAGE_NAME)
-DOW = $(shell date +%a)
+DOW := $(shell date +%a)
 
 # -s -w are for smaller binaries
 # -X compiles the git tag into the binary
@@ -29,6 +30,8 @@ upstream-update: upstream upstream/cothority upstream/onet
 	( cd upstream/cothority; git pull )
 	( cd upstream/onet; git pull )
 
+.PHONY: pkg-clean pkg-update pkg-patch
+
 pkg-clean:
 	rm -rf pkg
 
@@ -49,6 +52,8 @@ pkg-patch:
 	sed -i.bak 's.v3/personhood.v3/personhood/contracts.' $(BCA)
 	rm $(BCA).bak
 
+.PHONY: update test
+
 update: upstream-update pkg-update pkg-patch
 
 test:
@@ -61,10 +66,13 @@ docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
 		sh -c "go build -ldflags='$(ldflags)' ./cmd/byzcoin; \
 		cd pkg/cothority; go build -ldflags='$(ldflags)' ./byzcoin/bcadmin; \
 		cd scmgr; go build -ldflags='$(ldflags)' ."
-	mv byzcoin pkg/cothority/bcadmin pkg/cothority/scmgr/scmgr docker
+	mv pkg/cothority/bcadmin pkg/cothority/scmgr/scmgr $(@D)
+	mv byzcoin $@
 
 docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
-	touch docker/built
+	touch $@
+
+.PHONY: docker docker-push-new docker-push-dow docker-push-all
 
 docker: docker/built
 	docker build -t $(DOCKER_NAME):$(TAG) docker
@@ -81,12 +89,10 @@ docker-push-dow:
 	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):$(DOW)
 	docker push $(DOCKER_NAME):$(DOW)
 
-taghm:
-	TAG := $(VERSION)-$(shell date +%y%m%d-%H%M)
-
-docker-push-all: taghm docker-push
+docker-push-all: TAG := $(VERSION)-$(shell date +%y%m%d-%H%M)
+docker-push-all: docker
 	@for d in Sun Mon Tue Wed Thu Fri Sat; do \
 		echo "Creating docker-image for $$d"; \
-		docker tag $(DOCKER_NAME):latest $(DOCKER_NAME):$$d; \
+		docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):$$d; \
 		docker push $(DOCKER_NAME):$$d; \
 	done
