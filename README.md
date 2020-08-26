@@ -222,17 +222,17 @@ URL = https://byzcoin.c4dt.org
 
 # Updating
 
-This repo is automatically updated once per day.
-This is done using a travis-cronjob: https://travis-ci.com/github/c4dt/byzcoin/settings
+Two github actions are used to update the code once per week and serve it
+ over the coming week.
+The first action is started once a week to update the repo with the latest code
+ from the cothority and onet to produce a docker file.
+The second action runs every day to update the link of the 'daily' docker
+ image to the image from the first action.
+
 Every node has currently a `watchtower` docker running once an hour and will
  update accordingly.
-The roadmap for a better update is:
-
-1. update the code once per week.
-2. the nodes update throughout the week
-
-This would allow catching 'rogue' updates hopefully before they changed all
- the nodes.
+As every node is linked to a different 'daily' docker image, the 7 nodes
+ update throughout the week.
  
 ## Verification
 
@@ -251,3 +251,17 @@ make update
 git commit -am "updated to latest byzcoin"
 git push
 ```
+
+## Overwrite all images
+
+As this is still under development, sometimes it's nice to be able to update
+ all nodes without having to wait for a week.
+This can be done using
+
+```bash
+make docker-push-all
+```
+
+This will create a new docker image and tag it for every weekday.
+As the current nodes update their image once an hour, you'll have to wait for
+ an hour for every node to update.
