@@ -1,0 +1,17 @@
+name: docker-tag
+
+on:
+  push:
+    branches: master
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: test
+        run: |
+          cd cmd/byzcoin
+          ./test.sh
