@@ -2,7 +2,7 @@ name: update-code
 
 on:
   schedule:
-    - cron: '40 13 * * 2'
+    - cron: '42 0 * * 2'
 
 jobs:
   build:
