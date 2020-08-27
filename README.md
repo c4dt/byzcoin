@@ -265,3 +265,4 @@ make docker-push-all
 This will create a new docker image and tag it for every weekday.
 As the current nodes update their image once an hour, you'll have to wait for
  an hour for every node to update.
+To mark these updates as somewhat not ideal, a `force` is added to the version.
