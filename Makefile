@@ -1,16 +1,14 @@
 DOCKER_NAME := c4dt/byzcoin
 # mac date doesn't know about --date argument...
-DATE_COMPILE := $(shell date --date "last Monday" +%y%m%d || \
-               	date -v Mon +%y%m%d)
+DATE_COMPILE := $(shell date --date "last Monday" +%Y%m%d || \
+               	date -v Mon +%Y%m%d)
 DOW := $(shell date +%a)
 NAME := c4dt
 
 DOCKER_TAG = $(DATE_COMPILE)
 
-COTHORITY_TAG = $(shell git -C upstream/cothority fetch --tags; \
-	git -C upstream/cothority tag | sort | tail -n 1 )
-LATEST_COMMIT = $(shell git rev-parse --short HEAD)
-BINARY_VERSION = $(NAME)-$(COTHORITY_TAG)-$(DATE_COMPILE)-$(LATEST_COMMIT)
+LATEST_COMMIT = g$(shell git rev-parse --short HEAD)
+BINARY_VERSION = $(NAME)-$(DATE_COMPILE)-$(LATEST_COMMIT)
 
 # -s -w are for smaller binaries
 # -X compiles the git tag into the binary
@@ -92,7 +90,7 @@ docker-push-dow:
 	docker tag $(DOCKER_NAME):$(DOCKER_TAG) $(DOCKER_NAME):$(DOW)
 	docker push $(DOCKER_NAME):$(DOW)
 
-docker-push-all: DATE_COMPILE := $(shell date +%y%m%d-%H%M)
+docker-push-all: DATE_COMPILE := $(shell date +%Y%m%d-%H%M)
 docker-push-all: NAME := force
 docker-push-all: docker
 	docker push $(DOCKER_NAME):$(DOCKER_TAG)
