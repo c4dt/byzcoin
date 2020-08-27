@@ -1,16 +1,20 @@
-CONTAINER = byzcoin
-IMAGE_NAME = c4dt/$(CONTAINER)
-VERSION := $(shell git -C upstream/cothority fetch --tags; \
-	git -C upstream/cothority tag | sort | tail -n 1 )
+DOCKER_NAME := c4dt/byzcoin
 # mac date doesn't know about --date argument...
-TAG := $(VERSION)-$(shell date --date "last Monday" +%y%m%d || \
-	date -v Mon +%y%m%d)
-DOCKER_NAME = $(IMAGE_NAME)
+DATE_COMPILE := $(shell date --date "last Monday" +%y%m%d || \
+               	date -v Mon +%y%m%d)
 DOW := $(shell date +%a)
+NAME := c4dt
+
+DOCKER_TAG = $(DATE_COMPILE)
+
+COTHORITY_TAG = $(shell git -C upstream/cothority fetch --tags; \
+	git -C upstream/cothority tag | sort | tail -n 1 )
+LATEST_COMMIT = $(shell git rev-parse --short HEAD)
+BINARY_VERSION = $(NAME)-$(COTHORITY_TAG)-$(DATE_COMPILE)-$(LATEST_COMMIT)
 
 # -s -w are for smaller binaries
 # -X compiles the git tag into the binary
-ldflags=-s -w -X main.gitTag=c4dt-$(TAG)
+ldflags=-s -w -X main.gitTag=$(BINARY_VERSION)
 
 upstream:
 	mkdir upstream
@@ -75,24 +79,25 @@ docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
 .PHONY: docker docker-push-new docker-push-dow docker-push-all
 
 docker: docker/built
-	docker build -t $(DOCKER_NAME):$(TAG) docker
-	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):latest
+	docker build -t $(DOCKER_NAME):$(DOCKER_TAG) docker
 
 docker-push-new: docker
-	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):Mon
-	docker push $(DOCKER_NAME):$(TAG)
-	docker push $(DOCKER_NAME):latest
-	docker push $(DOCKER_NAME):Mon
+	for t in $(DOCKER_TAG) latest Mon; do \
+	  docker tag $(DOCKER_NAME):$(DOCKER_TAG) $(DOCKER_NAME):$$t; \
+	  docker push $(DOCKER_NAME):$$t; \
+	done
 
 docker-push-dow:
-	docker pull $(DOCKER_NAME):$(TAG)
-	docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):$(DOW)
+	docker pull $(DOCKER_NAME):$(DOCKER_TAG)
+	docker tag $(DOCKER_NAME):$(DOCKER_TAG) $(DOCKER_NAME):$(DOW)
 	docker push $(DOCKER_NAME):$(DOW)
 
-docker-push-all: TAG := $(VERSION)-$(shell date +%y%m%d-%H%M)
+docker-push-all: DATE_COMPILE := $(shell date +%y%m%d-%H%M)
+docker-push-all: NAME := force
 docker-push-all: docker
+	docker push $(DOCKER_NAME):$(DOCKER_TAG)
 	@for d in Sun Mon Tue Wed Thu Fri Sat; do \
 		echo "Creating docker-image for $$d"; \
-		docker tag $(DOCKER_NAME):$(TAG) $(DOCKER_NAME):$$d; \
+		docker tag $(DOCKER_NAME):$(DOCKER_TAG) $(DOCKER_NAME):$$d; \
 		docker push $(DOCKER_NAME):$$d; \
 	done
