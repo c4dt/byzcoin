@@ -1,9 +1,16 @@
 DOCKER_NAME := c4dt/byzcoin
+NAME := c4dt
+DOW := $(shell date +%a)
+
+# On Monday, get today's date. On all other days of the week, get last
+# Monday's date
+ifeq '$(DOW)' 'Mon'
+DATE_COMPILE := $(shell date +%Y%m%d)
+else
 # mac date doesn't know about --date argument...
 DATE_COMPILE := $(shell date --date "last Monday" +%Y%m%d || \
                	date -v Mon +%Y%m%d)
-DOW := $(shell date +%a)
-NAME := c4dt
+endif
 
 DOCKER_TAG = $(DATE_COMPILE)
 
@@ -13,6 +20,10 @@ BINARY_VERSION = $(NAME)-$(DATE_COMPILE)-$(LATEST_COMMIT)
 # -s -w are for smaller binaries
 # -X compiles the git tag into the binary
 ldflags=-s -w -X main.gitTag=$(BINARY_VERSION)
+
+print:
+	echo $(DOW)
+	echo $(DATE_COMPILE)
 
 upstream:
 	mkdir upstream
