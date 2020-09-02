@@ -1,3 +1,6 @@
 /upstream/
 /bcadmin
 /cached.db
+.godocker
+.idea
+nodes

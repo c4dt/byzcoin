@@ -236,10 +236,13 @@ As every node is linked to a different 'daily' docker image, the 7 nodes
  
 ## Verification
 
-The travis-job at c4dt/byzcoin verifies that the new code correctly replays
- all known transactions on the chain.
-This plus the normal unit-tests from the code are the only verification done
- before a new docker is created and published.
+The following verifications are done before a new image is generated:
+* a small unit-test for the binary
+* the new code correctly replays all known transactions on the chain
+* a cothority with 4 nodes can correctly migrate from the previous to the
+ current nodes
+ 
+All those tests are done in the `update.yaml` github action.
  
 ## Manual updates
  

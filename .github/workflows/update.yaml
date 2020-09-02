@@ -15,6 +15,11 @@ jobs:
       - name: Fetch latest code
         run: make update
 
+      - name: Verify mixed environment still runs
+        run: |
+          sudo echo "127.0.0.1 node1 node2 node3 node4" | sudo tee -a /etc/hosts
+          make verify_latest
+
       - name: Replay
         run: |
           ( cd upstream/cothority; go build -o ../../bcadmin ./byzcoin/bcadmin )
@@ -39,5 +44,6 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
       - name: Push new docker image
         run: make docker-push-new
