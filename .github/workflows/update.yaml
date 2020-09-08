@@ -3,8 +3,6 @@ name: update-code
 on:
   schedule:
     - cron: '42 0 * * 1'
-  push: 
-    branches: [master]
 
 jobs:
   build:
