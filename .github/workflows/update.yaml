@@ -16,6 +16,7 @@ jobs:
         run: make update
 
       - name: Verify mixed environment still runs
+        timeout-minutes: 10
         run: |
           sudo echo "127.0.0.1 node1 node2 node3 node4" | sudo tee -a /etc/hosts
           make verify_latest
