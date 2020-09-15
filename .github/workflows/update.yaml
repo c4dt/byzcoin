@@ -22,6 +22,7 @@ jobs:
           make verify_latest
 
       - name: Replay
+        if: false
         run: |
           ( cd upstream/cothority; go build -o ../../bcadmin ./byzcoin/bcadmin )
           wget --progress=dot:giga https://demo.c4dt.org/omniledger/cached.db
@@ -36,8 +37,10 @@ jobs:
         run: |
           if [ "${GITHUB_REF##*/}" = "master" ]; then
             git add .
-            git commit -am "Automatic update on $( date )"
-            git push
+            if [ "$(git status --porcelain)" ]; then
+              git commit -am "Automatic update on $( date )"
+              git push
+            fi
           fi
 
       - name: Set docker credentials
