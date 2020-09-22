@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+echo "Using command ${BYZCOIN:=./byzcoin}"
+
 export DEBUG_LVL DEBUG_COLOR DEBUG_TIME
 ssl=""
 if [[ ( $ADDRESS_WS =~ https.* ) && ( $USE_TLS != 'false' ) ]]; then
@@ -19,16 +21,16 @@ if [[ ( $ADDRESS_WS =~ https.* ) && ( $USE_TLS != 'false' ) ]]; then
 fi
 
 echo "Configuring ByzCoin"
-./byzcoin config --address-node "$ADDRESS_NODE" \
+$BYZCOIN config --address-node "$ADDRESS_NODE" \
     --address-ws "$ADDRESS_WS" --desc "$DESCRIPTION" \
     --byzcoin-id "$BYZCOIN_ID" --data-dir /byzcoin $ssl
 echo "Starting ByzCoin"
 
 if [[ -z "$GRAYLOG" ]]; then
   echo "Running without Graylog"
-  ./byzcoin --debug $DEBUG_LVL run /byzcoin
+  $BYZCOIN --debug $DEBUG_LVL run /byzcoin
 else
   echo "Forwarding to Graylog: ${GRAYLOG/:/ }"
-  ./byzcoin --debug $DEBUG_LVL run /byzcoin | tee /dev/stderr | \
+  $BYZCOIN --debug $DEBUG_LVL run /byzcoin | tee /dev/stderr | \
     netcat -v ${GRAYLOG/:/ }
 fi

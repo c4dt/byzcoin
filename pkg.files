@@ -26,7 +26,7 @@ cothority/calypso/protocol
 cothority/darc
 cothority/dkg/pedersen
 cothority/messaging
-cothority/personhood/contracts/*.go
+cothority/personhood
 cothority/scmgr
 cothority/skipchain/*.go
 cothority/skipchain/*.md

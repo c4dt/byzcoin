@@ -5,7 +5,7 @@ RUN mkdir /byzcoin
 RUN mkdir -p .local/share .config
 RUN ln -s /byzcoin .local/share/conode
 RUN ln -s /byzcoin .config/conode
-COPY byzcoin bcadmin scmgr byzcoin.sh /root/
+COPY byzcoin full bcadmin scmgr byzcoin.sh /root/
 LABEL com.centurylinklabs.watchtower.enable="true"
 
 CMD ["./byzcoin.sh"]

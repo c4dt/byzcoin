@@ -76,14 +76,17 @@ update: upstream-update pkg-update pkg-patch
 test:
 	cd cmd/byzcoin && ./test.sh -b
 
-docker/byzcoin: cmd/byzcoin/main.go $(shell find pkg)
+docker/byzcoin: cmd/byzcoin/main.go cmd/full/main.go $(shell find pkg)
 	docker run --rm -v "$$PWD":/usr/src/myapp \
 		-v "$$PWD"/.godocker:/go \
 		-w /usr/src/myapp golang:1.15 \
 		sh -c "go build -ldflags='$(ldflags)' ./cmd/byzcoin; \
+		go build -ldflags='$(ldflags)' ./cmd/full; \
 		cd pkg/cothority; go build -ldflags='$(ldflags)' ./byzcoin/bcadmin; \
+		go build -ldflags='$(ldflags)' ./personhood/phapp; \
 		cd scmgr; go build -ldflags='$(ldflags)' ."
-	mv pkg/cothority/bcadmin pkg/cothority/scmgr/scmgr $(@D)
+	mv pkg/cothority/bcadmin pkg/cothority/scmgr/scmgr pkg/cothority/phapp $(@D)
+	mv full docker
 	mv byzcoin $@
 
 docker/built: docker/byzcoin.sh docker/Dockerfile docker/byzcoin
