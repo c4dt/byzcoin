@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -143,11 +144,30 @@ func (s *Service) sendViewChangeReq(view viewchange.View) error {
 			continue
 		}
 		go func(id *network.ServerIdentity) {
-			if err := s.SendRaw(id, &req); err != nil {
-				// Having an error here is fine because not all the
-				// nodes are guaranteed to be online. So we log a
-				// warning instead of returning an error.
-				log.Warn(s.ServerIdentity(), "Couldn't send view-change request to", id.Address, err)
+			// Calculate a random delay between
+			// [BlockInterval/2..BlockInterval] to wait before re-sending the
+			// message.
+			// At least in testing it often happens that a message gets lost
+			// (travis and jenkins).
+			delay := time.Second
+			bi, err := s.LoadConfig(view.ID)
+			if err != nil {
+				log.Errorf("couldn't get config: %+v", err)
+			} else {
+				factor := time.Duration(1000 + rand.Intn(1000))
+				delay = bi.BlockInterval * factor / time.Duration(2000)
+			}
+			for i := 0; i < 2; i++ {
+				log.Print(s.ServerIdentity(), i)
+				if err := s.SendRaw(id, &req); err != nil {
+					// Having an error here is fine because not all the
+					// nodes are guaranteed to be online. So we log a
+					// warning instead of returning an error.
+					log.Warn(s.ServerIdentity(), "Couldn't send view-change request to", id.Address, err)
+				}
+				if i == 0 {
+					time.Sleep(delay)
+				}
 			}
 		}(sid)
 	}
@@ -224,7 +244,7 @@ func (s *Service) computeInitialDuration(scID skipchain.SkipBlockID) (time.Durat
 	if err != nil {
 		return 0, xerrors.Errorf("loading block info: %v", err)
 	}
-	return s.rotationWindow * interval, nil
+	return time.Duration(s.rotationWindow) * interval, nil
 }
 
 func (s *Service) getSignatureThreshold(sbID skipchain.SkipBlockID) int {
