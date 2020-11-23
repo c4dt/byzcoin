@@ -210,7 +210,7 @@ func testAddTransaction(t *testing.T, sendToIdx int, failure bool) {
 	// try to read the transaction back again
 	log.Lvl1("reading the transactions back")
 	txs := []ClientTransaction{tx1, tx2}
-	b.Client.UseNode(sendToIdx)
+	require.NoError(t, b.Client.UseNode(sendToIdx))
 	for i := 0; i < 2; i++ {
 		if i == 1 {
 			// Now read the key/values from a new service
@@ -549,9 +549,9 @@ func TestService_AutomaticVersionUpgrade(t *testing.T) {
 
 	// Simulate an upgrade of the conodes.
 	for _, srv := range b.Services {
-		srv.defaultVersionLock.Lock()
+		srv.defaultVersionMutex.Lock()
 		srv.defaultVersion = CurrentVersion
-		srv.defaultVersionLock.Unlock()
+		srv.defaultVersionMutex.Unlock()
 	}
 
 	for i := 0; i < 10; i++ {
@@ -1845,21 +1845,19 @@ func TestService_CheckValidPeers(t *testing.T) {
 
 		ctx, _ := createConfigTxWithCounter(b, b.PropagationInterval,
 			*goodRoster, defaultMaxBlockSize)
-		cl := NewClient(b.Genesis.SkipChainID(), *goodRoster)
-		require.NoError(t, cl.UseNode(1))
-		resp, err := cl.AddTransactionAndWait(ctx, 10)
-		transactionOK(t, resp, err)
+		b.SendTx(&TxArgsDefault, ctx)
 
 		b.Services = append(b.Services,
 			newServers[index].Service(ServiceName).(*Service))
 
 		// Add dummy transaction to ensure new node is updated
-		addDummyTxs(b, 1, 1)
+		b.SpawnDummy(&TxArgsDefault)
 
 		// Check valid peers in all current servers
-		for _, srv := range allServers[index : index+len(expectedValidPeers)] {
+		for _, srv := range allServers[index : index+len(
+			expectedValidPeers)-1] {
 			require.ElementsMatch(t,
-				srv.GetValidPeers(peerSetID), expectedValidPeers)
+				expectedValidPeers, srv.GetValidPeers(peerSetID), srv.ServerIdentity)
 		}
 
 		log.Lvl1("Removing", goodRoster.List[0])
@@ -1868,13 +1866,10 @@ func TestService_CheckValidPeers(t *testing.T) {
 
 		ctx, _ = createConfigTxWithCounter(b, b.PropagationInterval,
 			*goodRoster, defaultMaxBlockSize)
-		resp, err = cl.AddTransactionAndWait(ctx, 10)
-		transactionOK(t, resp, err)
+		b.SendTx(&TxArgsDefault, ctx)
 
 		b.Services = b.Services[1:]
-
-		// Wait until all servers have included the block
-		require.NoError(t, cl.WaitPropagation(-1))
+		b.SpawnDummy(&TxArgsDefault)
 
 		// Check valid peers in all current servers
 		for _, srv := range allServers[index+1 : index+len(expectedValidPeers)] {
@@ -2524,16 +2519,16 @@ func TestService_Repair(t *testing.T) {
 
 	// Introduce an artificial corruption and then try to repair it.
 	genesisHex := fmt.Sprintf("%x", b.Genesis.SkipChainID())
-	b.Services[0].stateTriesLock.Lock()
+	b.Services[0].stateTriesMutex.Lock()
 	b.Services[0].stateTries[genesisHex] = intermediateStateTrie
-	b.Services[0].stateTriesLock.Unlock()
+	b.Services[0].stateTriesMutex.Unlock()
 
 	err := b.Services[0].fixInconsistencyIfAny(b.Genesis.SkipChainID(), intermediateStateTrie)
 	require.NoError(t, err)
 
-	b.Services[0].stateTriesLock.Lock()
+	b.Services[0].stateTriesMutex.Lock()
 	newRoot := b.Services[0].stateTries[genesisHex].GetRoot()
-	b.Services[0].stateTriesLock.Unlock()
+	b.Services[0].stateTriesMutex.Unlock()
 	require.Equal(t, finalRoot, newRoot)
 }
 

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.dedis.ch/cothority/v3"
@@ -740,3 +741,97 @@ const (
 	// instances. If not present, missing instances are ignored.
 	GUFSendMissingProofs
 )
+
+// runSingleWG allows to ensure a single execution of a method.
+type runSingleWG struct {
+	wg      sync.WaitGroup
+	running int32
+}
+
+// Increment on Start - returns false if wg is already running
+func (cg *runSingleWG) start() bool {
+	fresh := atomic.CompareAndSwapInt32(&cg.running, 0, 1)
+	if !fresh {
+		return false
+	}
+	cg.wg.Add(1)
+	return true
+}
+
+// Decrement on Done
+func (cg *runSingleWG) done() {
+	if !cg.isRunning() {
+		panic("cannot call done on idle runSingleWG")
+	}
+	atomic.AddInt32(&cg.running, -1)
+	cg.wg.Done()
+}
+
+// Check if currently running
+func (cg *runSingleWG) isRunning() bool {
+	return atomic.LoadInt32(&cg.running) > 0
+}
+
+// wait for the single task to be done
+func (cg *runSingleWG) wait() {
+	cg.wg.Wait()
+}
+
+// tasksWG is a special workGroup that can be paused or resumed.
+// The default state is paused.
+type tasksWG struct {
+	m            sync.Mutex
+	wg           sync.WaitGroup
+	tasksAllowed bool
+}
+
+// Add returns false if tasksWG is paused, and the WaitGroup is not increased.
+// Only if tasksWG is resumed Add returns true and the WaitGroup is
+// increased.
+func (wwg *tasksWG) add(delta int) bool {
+	wwg.m.Lock()
+	defer wwg.m.Unlock()
+	if !wwg.tasksAllowed {
+		return false
+	}
+	wwg.wg.Add(delta)
+	return true
+}
+
+// pauses tasksWG so that no new tasks are allowed.
+func (wwg *tasksWG) pause() bool {
+	wwg.m.Lock()
+	defer wwg.m.Unlock()
+	if !wwg.tasksAllowed {
+		return false
+	}
+	wwg.tasksAllowed = false
+	return true
+}
+
+// resumes tasksWG to allow new tasks again.
+func (wwg *tasksWG) resume() {
+	wwg.m.Lock()
+	defer wwg.m.Unlock()
+	if wwg.tasksAllowed {
+		panic("cannot resume when already resumed")
+	}
+	wwg.tasksAllowed = true
+}
+
+// areTasksAllowed returns the state of tasksWG.
+func (wwg *tasksWG) areTasksAllowed() bool {
+	wwg.m.Lock()
+	defer wwg.m.Unlock()
+	return wwg.tasksAllowed
+}
+
+// finish one of the tasks
+func (wwg *tasksWG) done() {
+	wwg.wg.Done()
+}
+
+// wait for all the tasks to be finished
+func (wwg *tasksWG) wait() {
+	wwg.wg.Wait()
+}
