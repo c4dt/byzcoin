@@ -3,6 +3,8 @@ name: update-code
 on:
   schedule:
     - cron: '42 0 * * 1'
+  push:
+    branches: master
 
 jobs:
   build:
@@ -30,11 +32,11 @@ jobs:
           if [ "${GITHUB_REF##*/}" = "master" ]; then
             git add .
             if [ "$(git status --porcelain)" ]; then
-              echo '::set-env name=REPLAY::true'
-              echo '::set-env name=PUSH::true'
+              echo "REPLAY=true" >> $GITHUB_ENV
+              echo "PUSH=true" >> $GITHUB_ENV
             fi
           else
-            echo '::set-env name=REPLAY::true'
+            echo "REPLAY=true" >> $GITHUB_ENV
           fi
           echo "REPLAY: ${{ env.REPLAY }}"
           echo "PUSH: ${{ env.PUSH }}"
