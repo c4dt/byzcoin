@@ -11,9 +11,9 @@ DATE_PREVIOUS := $(shell date --date "last Monday" +%Y%m%d || \
 else
 # mac date doesn't know about --date argument...
 DATE_COMPILE := $(shell date --date "last Monday" +%Y%m%d || \
-               	date -v Mon +%Y%m%d)
+				date -v Mon +%Y%m%d)
 DATE_PREVIOUS := $(shell date --date "Monday a fortnight ago" +%Y%m%d || \
-               	date -v Mon -v -7d +%Y%m%d)
+				date -v Mon -v -7d +%Y%m%d)
 endif
 
 DOCKER_TAG = $(DATE_COMPILE)
@@ -117,6 +117,12 @@ docker-push-all: docker
 		docker tag $(DOCKER_NAME):$(DOCKER_TAG) $(DOCKER_NAME):$$d; \
 		docker push $(DOCKER_NAME):$$d; \
 	done
+
+docker-push-dbg: DATE_COMPILE := $(shell date +%Y%m%d-%H%M)
+docker-push-dbg: NAME := dbg
+docker-push-dbg: docker
+	   docker tag $(DOCKER_NAME):$(DOCKER_TAG) $(DOCKER_NAME):$(NAME)
+	   docker push $(DOCKER_NAME):$(NAME)
 
 verify_latest: LATEST=$(DOCKER_NAME):$(DOCKER_TAG)
 verify_latest: PREVIOUS=$(DOCKER_NAME):$(DATE_PREVIOUS)

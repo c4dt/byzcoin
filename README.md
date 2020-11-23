@@ -269,3 +269,33 @@ This will create a new docker image and tag it for every weekday.
 As the current nodes update their image once an hour, you'll have to wait for
  an hour for every node to update.
 To mark these updates as somewhat not ideal, a `force` is added to the version.
+
+
+# Byzcoin binary
+
+The byzcoin binary has the following commands:
+- `config` to set up a new config
+- `show` to dump a config
+- `run` to start the node as a server
+- `proxy` to start a proxy
+
+The `config`, `show`, and `run` commands are used in the docker and are not
+ more explained here.
+Only the `proxy` command is interesting outside of docker.
+
+## Proxy
+
+You can run a proxy on your local computer for testing, e.g., if you're
+ developing a new web-frontend.
+The proxy takes an existing db, 
+like https://demo.c4dt.org/omniledger/cached.db, and serves it locally.
+When starting, the proxy does the following:
+1. scan all chains in the db and update to the latest block
+2. verify the stored state in the db and eventually updating it
+3. regularly check for updates of the chain
+
+The following arguments can be given to the `proxy` command:
+- `portWS` for the websocket-port where the proxy will listen for commands
+- `update` to change the intervals between two updates
+- `complete` if given, the proxy makes sure all chains have all blocks
+ available 
