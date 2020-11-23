@@ -24,7 +24,7 @@ jobs:
           make verify_latest
 
       - name: Set git credentials
-        uses: oleksiyrudenko/gha-git-credentials@v1
+        uses: oleksiyrudenko/gha-git-credentials@v2
         with:
           token: '${{ secrets.GITHUB_TOKEN }}'
       - name: Update github repo
