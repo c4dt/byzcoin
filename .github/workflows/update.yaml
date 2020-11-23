@@ -61,3 +61,59 @@ jobs:
 
       - name: Push new docker image
         run: make docker-push-new
+
+      - name: Store linux binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: linux-binary
+          path: docker
+
+  release:
+    runs-on: macos-latest
+    needs: build
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 1
+
+      - name: Compile Mac binaries
+        run: |
+          MAC=macosx
+          mkdir -p $MAC
+          for bin in byzcoin full; do go build -o $MAC ./cmd/$bin; done
+          ( cd pkg/cothority; \
+            for bin in byzcoin/bcadmin scmgr personhood/phapp; do \
+              go build -o ../../$MAC ./$bin; \
+            done )
+
+      - name: Fetch linux binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-binary
+          path: linux
+
+      - name: show
+        run: ls -R
+
+      - name: Create release.tgz
+        run: |
+          RELEASE_DATE=$(date +%Y-%m-%d)
+          RELEASE=byzcoin-$RELEASE_DATE
+          mkdir $RELEASE
+          ls -l
+          ( cd linux; rm -f Dockerfile built byzcoin.sh )
+          mv linux macosx $RELEASE
+
+          ls -R $RELEASE
+          tar czf byzcoin-linux-macosx-$RELEASE_DATE.tgz $RELEASE
+          echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_ENV
+
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "*.tgz"
+          body: "Binary release of the byzcoin files"
+          name: "Release linux and macOSX ${{env.RELEASE_DATE}}"
+          prerelease: true
+          tag: release-${{env.RELEASE_DATE}}
+          token: ${{ secrets.GITHUB_TOKEN }}
