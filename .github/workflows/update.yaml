@@ -114,6 +114,6 @@ jobs:
           artifacts: "*.tgz"
           body: "Binary release of the byzcoin files"
           name: "Release linux and macOSX ${{env.RELEASE_DATE}}"
-          prerelease: true
+          prerelease: false
           tag: release-${{env.RELEASE_DATE}}
           token: ${{ secrets.GITHUB_TOKEN }}
