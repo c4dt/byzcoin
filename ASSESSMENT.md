@@ -12,7 +12,16 @@ I discuss the following security aspects of running a byzcoin node:
 - DOS attacks against or using the server
 - CPU / harddisk
 
-TLDR: Look at https://github.com/c4dt/byzcoin/issues/14 for proposed fixes. 
+Each node opens two ports:
+- one port for node-to-node communication using protobuf-over-tls
+- one port for web clients to connect, protected by a valid TLS certificate
+
+TLDR: Look at https://github.com/c4dt/byzcoin/issues/14 for proposed fixes.
+
+## Versions
+
+- 20-02-12 - initial version with list of possible disk-filling attacks
+- 20-12-16 - updated version with implemented fixes
 
 ## Remote Execution
 
@@ -111,9 +120,9 @@ Contrary to `node`, where thousands of packages are used to build a single
 The total list of external (non-system) libraries used can be found in
  Appendix C.
 The code of the byzcoin node itself is only updated after a code-review from
- the DEDIS lab.
+ the C4DT.
 
-## DOS and amplification attacks
+## DOS attacks
 
 The byzcoin service itself is only badly protected against DOS attacks.
 It is probably quite easy to send requests over WebSockets to spike the CPU
@@ -124,6 +133,8 @@ However, clients without a valid byzcoin wallet cannot fill up the harddisk.
 
 There is the possibility of amplification attacks in the current version of
  byzcoin because any node can send any request for an existing protocol.
+However, this touches only the nodes that are signed up for the current chain,
+not nodes of other chains of arbitrary IP addresses.
 For more details, see _Appendix B - Refuse non-byzcoin nodes_. 
  
 ## CPU / Harddisk
@@ -138,59 +149,29 @@ Should it come to pass that these attacks multiply, something like in
 
 Each service in a byzcoin is open to unvalidated clients through a WebSocket
  interface.
-The following services are available. 
-_CPU_ indicates eventual high CPU load.
+As there is no rate limiting on calling the service endpoints, all of them can
+be used to create a high CPU load on the server.
+The issue https://github.com/dedis/cothority/issues/2207 describes a list of service
+endpoints that should be amended:
 
-
-- ByzCoin - the largest service with a lot of publicly available endpoints:
-  - GetAllByzCoinIDs - CPU
-  - CreateGenesisBlock - disabled
-  - AddTransaction - flood ledger
-  - GetProof - CPU
-  - CheckAuthorization
-  - GetSignerCounters
-  - DownloadState - outgoing bandwidth - dedis/c
-  - GetInstanceVersion
-  - GetLastInstanceVersion
-  - GetAllInstanceVersion
-  - CheckStateChangeValidity
-  - ResolveInstanceID
-  - Debug - CPU
-  - DebugRemove - integrity of database - needs signature from node
-- Skipchain
-  - StoreSkipBlock - database size - check for friendly chain 
-  - GetUpdateChain - outbound network
-  - GetSingleBlock 
-  - GetSingleBlockByIndex - CPU
-  - GetAllSkipchains - CPU
-  - GetAllSkipChainIDs - CPU
-  - OptimizeProof - CPU, network - should take signature
-  - CreateLinkPrivate
-  - Unlink 
-  - AddFollow 
-  - ListFollow
-  - DelFollow 
-  - Listlink 
-  - ForwardLinkHandler
-- Status
-  - Request
-  - CheckConnectivity - amplification attack - solved by dedis/cothority#2204
+- byzcoin
+  - AddTransaction - can fill disk and blockchain with invalid transaction
+- skipchain
+  - StoreSkipBlock - can fill disk with the creation of new blockchains
 
 ### Protocol capabilities
 
 In addition to services, byzcoin has a number of protocols that need to be
  run in order to work correctly.
-All protocols can be used for amplification attacks, but all these attacks
- will be solved once dedis/cothority#2204 is implemented.
+Since the implementation of https://github.com/dedis/cothority/issues/2204,
+ no amplification attacks to random IP addresses are possible anymore.
 
-- dkg/pedersen - needed for calypso - c4dt/byzcoin#12
-- calypso/ocs - needed for calypso - c4dt/byzcoin#12
 - byzcoinx
 - skipchain
   - ProtocolExtendRoster
   - ProtocolGetBlocks
 - blscosi
-  - blscosi - deprecated - c4dt/byzcoin#13
+  - blscosi - deprecated - https://github.com/c4dt/byzcoin/issues/13
   - bdnprotocol
 - messaging
   - broadcast
@@ -206,23 +187,6 @@ While the main code should be safe from attacks, the code in `go.etcd.io
 
 ## Appendix B - Suggested changes
 
-### Limit ByzCoin creation
-
-The `byzcoin` binary in this docker image contains the functionality to disable
- creation of new byzcoin chains.
-Only the DEDIS byzcoin chain is allowed to propose new blocks. 
-
-### Refuse non-byzcoin nodes
-
-Currently any node can contact the byzcoin node to ask for digital signatures
- on data.
-This is a feature of the underlying protocol passing framework.
-An easy addition would be to forbid all access to nodes that are not in the
- current byzcoin configuration.
-As every node must start by authenticating before he can send proposed
- protocols, this would disable the amplification attack:
-https://github.com/dedis/cothority/issues/2204
-
 ### Refuse invalid ClientTransactions
 
 Currently anybody can send invalid ClientTransactions and thus fill up the
@@ -233,11 +197,6 @@ https://github.com/dedis/cothority/issues/2205
 ### Limit some of byzcoin service endpoints
 
 See https://github.com/dedis/cothority/issues/2207
-
-### Remove calypso protocol
-
-Make the calypso protocol (not the contracts) optional:
-https://github.com/c4dt/byzcoin/issues/12
 
 ## Appendix C - Possible changes
 
