@@ -682,8 +682,14 @@ var cmds = cli.Commands{
 						Usage: "maximum number of blocks to merge",
 					},
 					cli.BoolFlag{
-						Name:  "overwrite",
-						Usage: "replace whole blocks if they are duplicate",
+						Name: "wipe",
+						Usage: "delete the whole block db and replace with" +
+							" backup",
+					},
+					cli.BoolFlag{
+						Name: "append",
+						Usage: "adds newer block from backup - this will" +
+							" invalidate an eventual state trie!",
 					},
 				},
 			},
@@ -727,6 +733,28 @@ var cmds = cli.Commands{
 					cli.BoolFlag{
 						Name:  "skipSig",
 						Usage: "skip verifying of signatures",
+					},
+				},
+			},
+			{
+				Name: "optimize",
+				Usage: "Verify all blocks for missing forward-links and ask" +
+					" the nodes to update missing links.",
+				Action: dbOptimize,
+				Flags: []cli.Flag{
+					cli.IntFlag{
+						Name:  "start",
+						Usage: "Indicate first block to verify",
+						Value: -1,
+					},
+					cli.IntFlag{
+						Name:  "stop",
+						Usage: "Indicate the last block to verify",
+						Value: -1,
+					},
+					cli.BoolFlag{
+						Name:  "skipMissing",
+						Usage: "Do not download missing blocks",
 					},
 				},
 			},
