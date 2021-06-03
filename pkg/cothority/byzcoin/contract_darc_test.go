@@ -1,6 +1,7 @@
 package byzcoin
 
 import (
+	"go.dedis.ch/cothority/v3/darc/expression"
 	"testing"
 
 	"go.dedis.ch/cothority/v3"
@@ -233,4 +234,53 @@ func TestSecureDarc(t *testing.T) {
 		require.NoError(t, resp.Proof.VerifyAndDecode(cothority.Suite, ContractDarcID, &myDarc))
 		require.Equal(t, myDarc.Rules.Get("spawn:coin"), myDarc.Rules.Get("invoke:darc."+cmdDarcEvolveUnrestriction))
 	}
+}
+
+func TestContractDarcAssertActions(t *testing.T) {
+	b := newBCTRun(t, nil)
+	defer b.CloseAll()
+
+	stAction := darc.Action("spawn:test")
+	stAction2 := darc.Action("spawn:test2")
+	stIdent := b.Signer.Identity()
+
+	// Add two new rules
+	require.NoError(t, ContractDarcAssertActions(b.Client,
+		b.GenesisDarc.GetBaseID(), []darc.Action{stAction, stAction2},
+		stIdent, b.Signer))
+
+	// Check the two new rules are available
+	for _, a := range []darc.Action{stAction, stAction2} {
+		gd, err := ContractDarcGetFromID(b.Client, b.GenesisDarc.GetID())
+		require.NoError(t, err)
+		ok, err := expression.DefaultParser(gd.Rules.Get(a),
+			stIdent.String())
+		require.NoError(t, err)
+		require.True(t, ok)
+	}
+
+	// Add one of the rules again and check it's not in there twice
+	require.NoError(t, ContractDarcAssertActions(b.Client,
+		b.GenesisDarc.GetBaseID(), []darc.Action{stAction},
+		stIdent, b.Signer))
+
+	gd, err := ContractDarcGetFromID(b.Client, b.GenesisDarc.GetID())
+	require.NoError(t, err)
+	newExpr := gd.Rules.Get(stAction2)
+	require.NotNil(t, newExpr)
+	require.NotContains(t, string(newExpr), "|")
+
+	// Add a new identity and check that both identities are in
+	stIdent2 := darc.NewIdentityDarc(b.GenesisDarc.BaseID)
+	require.NoError(t, ContractDarcAssertActions(b.Client,
+		b.GenesisDarc.GetBaseID(), []darc.Action{stAction},
+		stIdent2, b.Signer))
+
+	gd, err = ContractDarcGetFromID(b.Client, b.GenesisDarc.GetID())
+	require.NoError(t, err)
+	newExpr = gd.Rules.Get(stAction)
+	require.NotNil(t, newExpr)
+	require.Contains(t, string(newExpr), "|")
+	require.Contains(t, string(newExpr),  stIdent.String())
+	require.Contains(t, string(newExpr),  stIdent2.String())
 }

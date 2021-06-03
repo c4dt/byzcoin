@@ -25,6 +25,7 @@ func TestNewFromByzcoin(t *testing.T) {
 	require.NoError(t, err)
 	pubArgs := user.GetPublic()
 	require.Equal(t, userName, string(pubArgs[0].Value))
+	log.Printf("%+v", user.credStruct)
 }
 
 func TestNew(t *testing.T) {

@@ -2,6 +2,9 @@ package byzcoin
 
 import (
 	"bytes"
+	"fmt"
+	"go.dedis.ch/cothority/v3/darc/expression"
+	"go.dedis.ch/protobuf"
 
 	"go.dedis.ch/cothority/v3"
 	"go.dedis.ch/cothority/v3/darc"
@@ -209,4 +212,94 @@ func ContractDarcSpawnInstructions(spawnerID darc.ID,
 		})
 	}
 	return
+}
+
+// ContractDarcGetFromID retrieves a darc from the byzcoin instance given in
+// the client. It returns any error encountered while getting the darc.
+func ContractDarcGetFromID(cl *Client, id darc.ID) (d darc.Darc, err error) {
+	resp, err := cl.GetProof(id)
+	if err != nil {
+		return d, xerrors.Errorf("while getting proof for darc: %v", err)
+	}
+	val, cid, _, err := resp.Proof.Get(id)
+	if err != nil {
+		return d, xerrors.Errorf("couldn't get darc-id from proof: %v", err)
+	}
+	if cid != ContractDarcID {
+		return d, xerrors.Errorf("this InstanceID points to a '%s', "+
+			"not a darc", cid)
+	}
+	if err = protobuf.Decode(val, &d); err != nil {
+		return d, xerrors.Errorf("couldn't decode darc: %v", err)
+	}
+	return
+}
+
+// ContractDarcAssertActions makes sure that the given actions include the given
+// identity. If not, it will try to update the darc to actually have these
+// rules present. This requires that the darc is of type "evolve_unrestricted"
+func ContractDarcAssertActions(cl *Client, darcID darc.ID,
+	actions []darc.Action, id darc.Identity, signer darc.Signer) error {
+	d, err := ContractDarcGetFromID(cl, darcID)
+	if err != nil {
+		return xerrors.Errorf("couldn't get darc from byzcoin: %v", err)
+	}
+	evUnres := d.Rules.Get("invoke:darc." + cmdDarcEvolveUnrestriction)
+	if evUnres == nil {
+		return xerrors.Errorf("this is not a darc with a '%s' rule", cmdDarcEvolveUnrestriction)
+	}
+	dNew := d.Copy()
+	if err := dNew.EvolveFrom(&d); err != nil {
+		return xerrors.Errorf("couldn't create evolving darc: %v", err)
+	}
+
+	updated := false
+	for _, a := range actions {
+		rule := d.Rules.Get(a)
+		if rule != nil {
+			ok, err := expression.DefaultParser(rule, id.String())
+			if err == nil && ok {
+				continue
+			}
+			rule = append(rule, fmt.Sprintf(" | %s", id.String())...)
+			if err := dNew.Rules.UpdateRule(a, rule); err != nil {
+				return xerrors.Errorf("couldn't update rule: %v", err)
+			}
+		} else {
+			if err := dNew.Rules.AddRule(a,
+				expression.Expr(id.String())); err != nil {
+				return xerrors.Errorf("couldn't add rule: %v", err)
+			}
+		}
+
+		updated = true
+	}
+
+	if updated {
+		dNewBuf, err := dNew.ToProto()
+		if err != nil {
+			return xerrors.Errorf("couldn't encode new darc: %v", err)
+		}
+		ctx, err := cl.CreateTransaction(Instruction{
+			InstanceID: NewInstanceID(dNew.GetBaseID()),
+			Invoke: &Invoke{
+				ContractID: ContractDarcID,
+				Command:    cmdDarcEvolveUnrestriction,
+				Args: Arguments{
+					{Name: "darc",
+						Value: dNewBuf},
+				},
+			},
+		})
+		if err != nil{
+			return xerrors.Errorf("couldn't create new transaction: %v", err)
+		}
+		if err := cl.SignTransaction(ctx, signer); err != nil{
+			return xerrors.Errorf("while signing transaction: %v", err)
+		}
+		if _, err := cl.AddTransactionAndWait(ctx, 10); err != nil{
+			return xerrors.Errorf("while submitting transaction: %v", err)
+		}
+	}
+	return nil
 }

@@ -3,9 +3,11 @@ package user
 import (
 	"fmt"
 	"go.dedis.ch/cothority/v3/byzcoin"
+	byz_contracts "go.dedis.ch/cothority/v3/byzcoin/contracts"
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/personhood/contracts"
+	"go.dedis.ch/kyber/v3/util/random"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
@@ -80,6 +82,15 @@ func NewFromByzcoin(cl *byzcoin.Client, spawnerDarcID darc.ID,
 	if err := cl.UseNode(1); err != nil {
 		return u, xerrors.Errorf("couldn't set UseNode: %v", err)
 	}
+	if err := byzcoin.ContractDarcAssertActions(cl, spawnerDarcID,
+		[]darc.Action{"spawn:" + contracts.ContractCredentialID,
+			"spawn:" + contracts.ContractSpawnerID,
+			"spawn:" + byz_contracts.ContractCoinID},
+		spawnerSigner.Identity(), spawnerSigner); err != nil {
+		return u, xerrors.Errorf("couldn't assert spawn:credential rule in"+
+			" darc: %v", err)
+	}
+
 	credSigner := darc.NewSignerEd25519(nil, nil)
 	instrs, err := CreateInstructionsSpawnFromDarc(spawnerDarcID, credSigner,
 		name)
@@ -96,7 +107,8 @@ func NewFromByzcoin(cl *byzcoin.Client, spawnerDarcID darc.ID,
 	if _, err := cl.AddTransactionAndWait(ctx, 10); err != nil {
 		return u, xerrors.Errorf("sending transaction: %v", err)
 	}
-	u, err = New(cl, ctx.Instructions[2].DeriveID(""))
+
+	u, err = New(cl, ctx.Instructions[4].DeriveID(""))
 	if err != nil {
 		return u, xerrors.Errorf("while fetching final credential: %v", err)
 	}
@@ -112,50 +124,73 @@ func NewFromByzcoin(cl *byzcoin.Client, spawnerDarcID darc.ID,
 // The caller has to put the instructions in a ClientTransaction, sign it,
 // and send it to Byzcoin.
 func CreateInstructionsSpawnFromDarc(spawnerDarcID darc.ID,
-	device darc.Signer, name string) (byzcoin.Instructions, error) {
+	device darc.Signer, name string) (instrs byzcoin.Instructions, err error) {
 	ids := []darc.Identity{device.Identity()}
+	var preID byzcoin.InstanceID
+	random.Bytes(preID[:], random.New())
+	instrSpawner := contracts.ContractSpawnerInstructionSpawn(spawnerDarcID,
+		preID)
+	spID, err := instrSpawner.DeriveIDArg("", "preID")
+	if err != nil {
+		return nil, xerrors.Errorf(
+			"couldn't derive id for spawner: %v", err)
+	}
+
 	deviceRules := darc.InitRules(ids, ids)
 	if err := deviceRules.AddRule(darc.Action("invoke:darc.evolve"),
 		expression.Expr(device.Identity().String())); err != nil {
-		return nil, xerrors.Errorf("couldn't add darc.evolve rule: %v", err)
+		return nil, xerrors.Errorf("couldn't add darc.evolve rule: %v",
+			err)
 	}
 	deviceDarc := darc.NewDarc(deviceRules, []byte("Initial Device"))
 	credIDs := []darc.Identity{darc.NewIdentityDarc(deviceDarc.GetBaseID())}
 	credRules := darc.InitRules(credIDs, credIDs)
 	if err := credRules.AddRule(darc.Action("invoke:darc.evolve"),
 		expression.Expr(device.Identity().String())); err != nil {
-		return nil, xerrors.Errorf("couldn't add darc.evolve rule: %v", err)
+		return nil, xerrors.Errorf("couldn't add darc.evolve rule: %v",
+			err)
 	}
 	credDarc := darc.NewDarc(credRules, []byte("User "+name))
-	credStruct :=
-		contracts.CredentialStruct{Credentials: []contracts.Credential{
-			{
-				Name: string(Public),
-				Attributes: []contracts.Attribute{{
-					Name:  Alias,
-					Value: []byte(name),
-				}},
-			},
-			{
-				Name: string(Devices),
-				Attributes: []contracts.Attribute{{
-					Name:  "Initial",
-					Value: deviceDarc.GetBaseID(),
-				}},
-			},
-		}}
+
+	var preCoinID byzcoin.InstanceID
+	random.Bytes(preCoinID[:], random.New())
+	instrCoin := byzcoin.Instruction{
+		InstanceID: byzcoin.NewInstanceID(spawnerDarcID),
+		Spawn: &byzcoin.Spawn{
+			ContractID: byz_contracts.ContractCoinID,
+			Args: byzcoin.Arguments{{
+				Name:  "coinID",
+				Value: preCoinID.Slice(),
+			}, {
+				Name:  "darcID",
+				Value: credDarc.GetBaseID(),
+			}},
+		},
+	}
+	coinID, err := instrCoin.DeriveIDArg("", "coinID")
+	if err != nil {
+		return nil, xerrors.Errorf("couldn't get DeriveIDArg: %v", err)
+	}
+
+	credStruct := NewCredentialStruct(spID, deviceDarc.GetBaseID(), coinID,
+		name, "c4dt_user")
 
 	credBuf, err := protobuf.Encode(&credStruct)
 	if err != nil {
-		return nil, xerrors.Errorf("while encoding credentialStruct: %v", err)
+		return nil, xerrors.Errorf("while encoding credentialStruct: %v",
+			err)
 	}
-	darcInstrs, err := byzcoin.ContractDarcSpawnInstructions(spawnerDarcID,
+
+	instrs, err = byzcoin.ContractDarcSpawnInstructions(spawnerDarcID,
 		*deviceDarc, *credDarc)
 	if err != nil {
 		return nil, xerrors.Errorf(
 			"creating device and credential spawn instruction: %v", err)
 	}
-	return append(darcInstrs,
+
+	return append(instrs,
+		instrSpawner,
+		instrCoin,
 		byzcoin.Instruction{
 			InstanceID: byzcoin.NewInstanceID(spawnerDarcID),
 			Spawn: &byzcoin.Spawn{
