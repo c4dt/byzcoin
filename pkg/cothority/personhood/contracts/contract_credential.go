@@ -20,7 +20,7 @@ import (
 )
 
 // ContractCredentialID denotes a contract that holds an identity with all its attributes.
-const ContractCredentialID = "credential"
+var ContractCredentialID = "credential"
 
 // ContractCredentialFromBytes returns a credential-contract given a slice of bytes, or an error if something
 // went wrong.

@@ -20,7 +20,7 @@ import (
 )
 
 // ContractSpawnerID denotes a contract that can spawn new instances.
-const ContractSpawnerID = "spawner"
+var ContractSpawnerID = "spawner"
 
 // SpawnerCoin defines which coin type is allowed to spawn new instances.
 var SpawnerCoin = byzcoin.NewInstanceID([]byte("SpawnerCoin"))
@@ -395,21 +395,5 @@ func (ss *SpawnerStruct) defaultCosts() {
 	}
 	if ss.CostValue == nil {
 		ss.CostValue = &ss.CostCoin
-	}
-}
-
-// ContractSpawnerInstructionSpawn returns the instruction for spawning
-// a new spawner contract.
-func ContractSpawnerInstructionSpawn(spawnDarc darc.ID,
-	preID byzcoin.InstanceID) byzcoin.Instruction {
-	return byzcoin.Instruction{
-		InstanceID:       byzcoin.NewInstanceID(spawnDarc),
-		Spawn:            &byzcoin.Spawn{
-			ContractID: ContractSpawnerID,
-			Args:       byzcoin.Arguments{{
-				Name: "preID",
-				Value: preID.Slice(),
-			}},
-		},
 	}
 }

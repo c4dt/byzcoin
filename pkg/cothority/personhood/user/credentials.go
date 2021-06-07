@@ -1,11 +1,5 @@
 package user
 
-import (
-	"go.dedis.ch/cothority/v3/byzcoin"
-	"go.dedis.ch/cothority/v3/darc"
-	"go.dedis.ch/cothority/v3/personhood/contracts"
-)
-
 // This file gives a definition of all available credentials in a User.
 
 // CredentialEntry represents one entry in the credentials list
@@ -13,7 +7,7 @@ type CredentialEntry string
 
 const (
 	// Public credentials for this user
-	Public = "1-public"
+	Public CredentialEntry = "1-public"
 	// Config of this user
 	Config = "1-config"
 	// Devices for this user - name:DarcID
@@ -29,7 +23,7 @@ type AttributePublic string
 
 const (
 	// Contacts is a concatenated slice of CredentialIDs of known contacts
-	Contacts = "contactsBuf"
+	Contacts AttributePublic = "contactsBuf"
 	// Alias of the user
 	Alias = "alias"
 	// Email of the user
@@ -63,7 +57,7 @@ type AttributeConfig string
 
 const (
 	// View for the login.c4dt.org
-	View = "view"
+	View AttributeConfig = "view"
 	// Spawner used by this user
 	Spawner = "spawner"
 	// StructVersion - increased by 1 for every update
@@ -73,50 +67,3 @@ const (
 	// LtsX of the LtsID
 	LtsX = "ltsX"
 )
-
-func NewCredentialStruct(spawnerID byzcoin.InstanceID, initialDevice darc.ID,
-	coinID byzcoin.InstanceID, alias string, view string) contracts.
-	CredentialStruct {
-	return contracts.CredentialStruct{Credentials: []contracts.Credential{
-		{
-			Name: Public,
-			Attributes: []contracts.Attribute{{
-				Name:  Alias,
-				Value: []byte(alias),
-			}, {
-				Name: CoinID,
-				Value: coinID.Slice(),
-			}, {
-				Name:  Contacts,
-				Value: []byte{},
-			}, {
-				Name: Actions,
-				Value: []byte{},
-			}, {
-				Name: Groups,
-				Value: []byte{},
-			}},
-		},
-		{
-			Name: Devices,
-			Attributes: []contracts.Attribute{{
-				Name:  "Initial",
-				Value: initialDevice,
-			}},
-		},
-		{
-			Name: Config,
-			Attributes: []contracts.Attribute{{
-				Name:  View,
-				Value: []byte(view),
-			}, {
-				Name:  Spawner,
-				Value: spawnerID.Slice(),
-			}, {
-				Name: StructVersion,
-				Value: make([]byte, 4),
-			}},
-		},
-	}}
-
-}
