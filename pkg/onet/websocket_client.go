@@ -34,6 +34,10 @@ type Client struct {
 	keep bool
 	rx   uint64
 	tx   uint64
+	// How long to wait for a reply
+	ReadTimeout time.Duration
+	// How long to wait to open a connection
+	HandshakeTimeout time.Duration
 	sync.Mutex
 }
 
@@ -41,10 +45,12 @@ type Client struct {
 // connection will be started, until Close is called.
 func NewClient(suite network.Suite, s string) *Client {
 	return &Client{
-		service:         s,
-		connections:     make(map[destination]*websocket.Conn),
-		connectionsLock: make(map[destination]*sync.Mutex),
-		suite:           suite,
+		service:          s,
+		connections:      make(map[destination]*websocket.Conn),
+		connectionsLock:  make(map[destination]*sync.Mutex),
+		suite:            suite,
+		ReadTimeout:      time.Second * 60,
+		HandshakeTimeout: time.Second * 5,
 	}
 }
 
@@ -144,6 +150,7 @@ func (c *Client) newConnIfNotExist(dst *network.ServerIdentity, path string) (*w
 		}
 
 		// Re-try to connect in case the websocket is just about to start
+		d.HandshakeTimeout = c.HandshakeTimeout
 		for a := 0; a < network.MaxRetryConnect; a++ {
 			conn, _, err = d.Dial(serverURL, header)
 			if err == nil {
@@ -187,7 +194,7 @@ func (c *Client) Send(dst *network.ServerIdentity, path string, buf []byte) ([]b
 		return nil, xerrors.Errorf("connection write: %v", err)
 	}
 
-	if err := conn.SetReadDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+	if err := conn.SetReadDeadline(time.Now().Add(c.ReadTimeout)); err != nil {
 		return nil, xerrors.Errorf("read deadline: %v", err)
 	}
 	_, rcv, err = conn.ReadMessage()
