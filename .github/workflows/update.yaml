@@ -39,13 +39,13 @@ jobs:
           echo "REPLAY: ${{ env.REPLAY }}"
           echo "PUSH: ${{ env.PUSH }}"
 
-      - name: Replay
-        if: env.REPLAY == 'true'
-        run: |
-          ( cd upstream/cothority; go build -o ../../bcadmin ./byzcoin/bcadmin )
-          wget --progress=dot:giga https://demo.c4dt.org/omniledger/cached.db
-          if [ "${GITHUB_REF##*/}" != master ]; then export BLOCKS="--blocks 256"; fi
-          ./bcadmin --debug 1 db replay cached.db --summarize 100 $BLOCKS 9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3
+#      - name: Replay
+#        if: env.REPLAY == 'true'
+#        run: |
+#          ( cd upstream/cothority; go build -o ../../bcadmin ./byzcoin/bcadmin )
+#          wget --progress=dot:giga https://demo.c4dt.org/omniledger/cached.db
+#          if [ "${GITHUB_REF##*/}" != master ]; then export BLOCKS="--blocks 256"; fi
+#          ./bcadmin --debug 1 db replay cached.db --summarize 100 $BLOCKS 9cc36071ccb902a1de7e0d21a2c176d73894b1cf88ae4cc2ba4c95cd76f474f3
 
       - name: Push
         if: env.PUSH == 'true'
