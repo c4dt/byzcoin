@@ -1,6 +1,7 @@
 package onet
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
@@ -152,7 +153,9 @@ func TestProtocolAutomaticInstantiation(t *testing.T) {
 	go func() {
 		var err error
 		pi, err = h1.StartProtocol(simpleProto, tree)
-		require.NoError(t, err, "Could not start protocol")
+		if err != nil {
+			t.Fatal(fmt.Sprintf("Could not start protocol %v", err))
+		}
 		started <- true
 	}()
 
@@ -208,7 +211,9 @@ func TestProtocolError(t *testing.T) {
 	// start the protocol
 	go func() {
 		_, err := h1.StartProtocol(simpleProto, tree)
-		assert.NoError(t, err, "Could not start protocol")
+		if err != nil {
+			t.Fatal(fmt.Sprintf("Could not start protocol %v", err))
+		}
 	}()
 	// Start is finished
 	<-done
@@ -220,7 +225,9 @@ func TestProtocolError(t *testing.T) {
 	// start the protocol
 	go func() {
 		_, err := h1.StartProtocol(simpleProto, tree)
-		require.NoError(t, err, "Could not start protocol")
+		if err != nil {
+			t.Fatal(fmt.Sprintf("Could not start protocol %v", err))
+		}
 	}()
 	// Start is finished
 	<-done
