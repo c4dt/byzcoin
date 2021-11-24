@@ -371,13 +371,19 @@ func TestNodeBlocking(t *testing.T) {
 	go func() {
 		// Send two messages to n1, which blocks the old interface
 		err := l.sendTreeNode("", tn2, tn1, &NodeTestMsg{})
-		require.NoError(t, err, "Couldn't send message")
+		if err != nil {
+			t.Fatal("Couldn't send message:", err)
+		}
 		err = l.sendTreeNode("", tn2, tn1, &NodeTestMsg{})
-		require.NoError(t, err, "Couldn't send message")
+		if err != nil {
+			t.Fatal("Couldn't send message:", err)
+		}
 		// Now send a message to n2, but in the old interface this
 		// blocks.
 		err = l.sendTreeNode("", tn1, tn2, &NodeTestMsg{})
-		require.NoError(t, err, "Couldn't send message")
+		if err != nil {
+			t.Fatal("Couldn't send message:", err)
+		}
 	}()
 	// Release p2
 	p2.stopBlockChan <- true
