@@ -3,6 +3,7 @@ name: update-code
 on:
   schedule:
     - cron: '42 0 * * 1'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -76,15 +77,15 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Compile Mac binaries
-        run: |
-          MAC=macosx
-          mkdir -p $MAC
-          for bin in byzcoin full; do go build -o $MAC ./cmd/$bin; done
-          ( cd pkg/cothority; \
-            for bin in byzcoin/bcadmin scmgr personhood/phapp; do \
-              go build -o ../../$MAC ./$bin; \
-            done )
+#      - name: Compile Mac binaries
+#        run: |
+#          MAC=macosx
+#          mkdir -p $MAC
+#          for bin in byzcoin full; do go build -o $MAC ./cmd/$bin; done
+#          ( cd pkg/cothority; \
+#            for bin in byzcoin/bcadmin scmgr personhood/phapp; do \
+#              go build -o ../../$MAC ./$bin; \
+#            done )
 
       - name: Fetch linux binaries
         uses: actions/download-artifact@v2
