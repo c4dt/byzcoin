@@ -103,10 +103,12 @@ jobs:
           mkdir $RELEASE
           ls -l
           ( cd linux; rm -f Dockerfile built byzcoin.sh )
-          mv linux macosx $RELEASE
+          #mv linux macosx $RELEASE
+          mv linux $RELEASE
 
           ls -R $RELEASE
-          tar czf byzcoin-linux-macosx-$RELEASE_DATE.tgz $RELEASE
+          tar czf byzcoin-linux-$RELEASE_DATE.tgz $RELEASE
+          #tar czf byzcoin-linux-macosx-$RELEASE_DATE.tgz $RELEASE
           echo "RELEASE_DATE=$RELEASE_DATE" >> $GITHUB_ENV
 
       - name: Create release
@@ -114,7 +116,8 @@ jobs:
         with:
           artifacts: "*.tgz"
           body: "Binary release of the byzcoin files"
-          name: "Release linux and macOSX ${{env.RELEASE_DATE}}"
+          #name: "Release linux and macOSX ${{env.RELEASE_DATE}}"
+          name: "Release linux ${{env.RELEASE_DATE}}"
           prerelease: false
           tag: release-${{env.RELEASE_DATE}}
           token: ${{ secrets.GITHUB_TOKEN }}
