@@ -1,4 +1,20 @@
-# Byzcoin node
+# Byzcoin node - ARCHIVED
+
+This repo has been archived and is no longer supporter.
+You can however run this as a demo to run on your local machine.
+To run the demo, download the repo and run the `docker-compose.yaml` file.
+Then point your browser to http://localhost:8080
+The upcoming page gives a short summary of the different tools available
+to interact with the byzcoin-blockchain.
+The following tools are incorporated:
+
+- ByzCoin itself, running 4 nodes locally
+- [OmniLedger](https://) login tool
+
+If you have any questions, or remarks, don't hesitate to reach out to
+us by [c4dt-services@listes.epfl.ch](mailto:c4dt-services@listes.epfl.ch)
+
+## Description
 
 Byzcoin is a high-performance permissioned blockchain that can safely run in 
 public mode, meaning everybody with access tokens can use it.

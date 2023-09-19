@@ -293,6 +293,7 @@ func run(c *cli.Context) error {
 		return xerrors.New("Please give data-dir")
 	}
 
+    os.Setenv("CONODE_SERVICE_PATH", c.Args().First())
 	_, server, err := app.ParseCothority(path.Join(c.Args().First(), "private.toml"))
 	if err != nil {
 		return xerrors.Errorf("couldn't load config: %+v", err)
