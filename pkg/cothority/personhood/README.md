@@ -57,7 +57,7 @@ register the following information:
 
 1. Create a new email user in the https://login.c4dt.org
    frontend - make sure that there are appropriate recovery options in case
-   you loose the private key.
+   you lose the private key.
 2. Add a new DARC to the email user and call it `EmailDarc` - of course you
    can choose another name.
 3. Add a device to the user and call it `Email`.
