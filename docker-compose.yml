@@ -11,7 +11,7 @@ services:
           DOCKER_BUILDKIT: 1
     platform: linux/amd64
     ports:
-      - "7770-7777:7770-7777"
+      - "7772-7779:7772-7779"
       - "8080:3000"
     environment:
       - NODE=1

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Documentation • PaperCSS</title>
+    <link rel='canonical' href='https://getpapercss.com/docs/'>
+
+
+    <link rel='stylesheet' href='paper.min.css'>
+    <script>
+      document.addEventListener('DOMContentLoaded', (event) => {
+        const url = "login.txt"
+        fetch(url)
+        .then( r => r.text() )
+        .then( data =>
+             document.getElementById('login').innerHTML = `<a href="${data}">Login</a>`
+        )
+      });
+
+      function setDarkMode(d){
+        var html = document.documentElement;
+        html.className = d ? 'dark' : '';
+        console.log(`HTML is now ${html.className} for ${d}`);
+      }
+
+      setDarkMode(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+        if (event.matches){
+          setDarkMode(true);
+        }
+      });
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', event => {
+        if (event.matches){
+          setDarkMode(false);
+        }
+      });
+
+
+
+    </script>
+</head>
+
+<body>
+<div class='paper container margin-bottom-large'>
+    <h1>OmniLedger demo archive</h1>
+    <p>This demo allows you to run a blockchain on your local computer and play around with it.
+        It is based on OmniLedger, which is a blockchain service built upon the
+        <a href="https://factory.c4dt.org/showcase/omniledger/presentation">ByzCoin</a> paper from the
+        <a href="https://dedis.epfl.ch">DEDIS</a> lab at EPFL.
+        It has been supported and extended by the <a href="https://c4dt.epfl.ch">C4DT</a> and is now available
+        as a standalone, archived demo that can be run on your computer.
+    </p>
+    <p>
+        You can find more information on our blog post here: <a href="https://c4dt.epfl.ch/article/omniledger-2/">OmniLedger</a>.
+    </p>
+    <p>
+        When you typed <code>docker compose up</code>, four nodes started communicating with each other
+        and awaiting commands from a client.
+        The first thing you should do is to create a new user connected to the blockchain.
+        To do this, click on the following link: <span id="login"></span>.
+        Now you are ready to look at the different services offered by this demo.
+    </p>
+
+    <h2>Troubleshooting</h2>
+    <p>If you're stuck and things don't work anymore, it's best to start from scratch.
+        You need the following to do so:
+    <ol>
+        <li>On the <a href="/login">login page</a>, you need to
+            <a href="https://www.leadshook.com/help/how-to-clear-local-storage-in-google-chrome-browser/">delete all
+                local storage</a></li>
+        <li>Stop docker compose: <code>docker compose down</code></li>
+        <li>Delete the data from the nodes: <code>rm -rf nodes</code></li>
+        <li>Start the nodes again: <code>docker compose up</code></li>
+        <li>Re-create the login with the link on this page</li>
+    </ol>
+    </p>
+
+    <div class="row">
+        <div class="sm-12 md-6 col card" style="width: 20rem;">
+            <img src="service-omniledger.png" alt="OmniLedger service">
+
+            <div class="card-body">
+                <h4 class="card-title">OmniLedger service</h4>
+                <h5 class="card-subtitle">Login service and handling users</h5>
+                <p class="card-text">This service allows administration of a user credential on the blockchain.
+                    You can read more in the blog post about
+                    <a href="https://c4dt.epfl.ch/article/dynacred/">Account Management in Omniledger</a>.
+                    Internally we used it to connect to other services, like our matrix instance for internal
+                    discussions: <a href="https://c4dt.epfl.ch/article/cas-for-omniledger/">CAS Login using
+                        OmniLedger</a>.
+                    Connecting mobile devices was a bit more complicated, but today's passwordless authentication
+                    services
+                    also involve scanning of QRCodes, like did our solution to
+                    <a href="https://c4dt.epfl.ch/article/matrix-on-mobile/">Login to Matrix on Mobile</a>.
+                    The final service we implemented was a
+                    <a href="https://c4dt.epfl.ch/article/omniledger-email-signup-and-recovery/">Signup and Recovery</a>
+                    tool for OmniLedger.
+                    This allowed anybody from EPFL to get an OmniLedger credential and then use it to sign on to our
+                    matrix chat.
+                </p>
+                <p class="card-text"></p>
+                <a href="/omniledger.html">
+                    <button>Go to the OL step-by-step</button>
+                </a>
+            </div>
+        </div>
+
+        <div class="sm-12 md-6 col card" style="width: 20rem;">
+            <img src="service-ol-explorer.png" alt="Explorer">
+
+            <div class="card-body">
+                <h4 class="card-title">OL Explorer</h4>
+                <h5 class="card-subtitle">Blockchain explorer for programmers</h5>
+                <p class="card-text">
+                    This explorer allows detailed views of the different parts
+                    of the ByzCoin blockchain.
+                    You can print all fields of the stored blocks and use the console to
+                    work on the different fields of the blocks.</p>
+                <a href="/ol-explorer">
+                    <button>Go to the OL explorer</button>
+                </a>
+            </div>
+        </div>
+
+        <div class="sm-12 md-6 card" style="width: 20rem;">
+            <img src="service-columbus.png" alt="Columbus explorer">
+
+            <div class="card-body">
+                <h4 class="card-title">Columbus Explorer</h4>
+                <h5 class="card-subtitle">Blockchain explorer for humans</h5>
+                <p class="card-text">
+                    This explorer has a nice GUI to search for transactions on the
+                    blockchain.
+                    You can follow forward- and backward-links to different blocks
+                    and display their content.
+                    It interprets most of the transactions correctly.
+                </p>
+                <a href="/columbus">
+                    <button>Go to Columbus</button>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

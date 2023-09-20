@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <title>Documentation • PaperCSS</title>
+    <link rel='canonical' href='https://getpapercss.com/docs/'>
+
+
+    <link rel='stylesheet' href='paper.min.css'>
+    <script>
+      document.addEventListener('DOMContentLoaded', (event) => {
+        const url = "login.txt"
+        fetch(url)
+        .then( r => r.text() )
+        .then( data =>
+             document.getElementById('login').innerHTML = `<a href="${data}">Sign Up</a>`
+        )
+      });
+
+      function setDarkMode(d){
+        var html = document.documentElement;
+        html.className = d ? 'dark' : '';
+        console.log(`HTML is now ${html.className} for ${d}`);
+      }
+
+      setDarkMode(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+        if (event.matches){
+          setDarkMode(true);
+        }
+      });
+      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', event => {
+        if (event.matches){
+          setDarkMode(false);
+        }
+      });
+
+
+    </script>
+</head>
+
+<body>
+<div class='paper container margin-bottom-large'>
+    <h1>OmniLedger Login Service</h1>
+    <p>
+        Here you can find a walkthrough to explore what the OmniLedger login can do.
+        Feel free to send questions to the <a href="mailto:c4dt-services@listes.epfl.ch">C4DT Factory</a>.
+    </p>
+    <h2>Register User</h2>
+    <p>
+        As a first step, you need to register your user on the blockchain.
+        The docker images for this demo contain already an initialized blockchain, so you can simply use the
+        following link to <span id="login"></span>
+    </p><p>
+        By signing up to the local OmniLedger blockchain, a secret key is stored in your browser.
+        The new state of the blockchain is also stored in the <code>node/*</code> directories, with one directory for
+        each node.
+        Once you registered, you're ready to go to the next step.
+    </p>
+    <h2>Update User Attributes</h2>
+    <p>
+        Now that you're signed up, you can change your name and see the new block on the
+        chain:
+        go to <a href="/login/admin/yourself">Contact Information</a>, change your alias and then
+        click on <code>Update Credential</code>.
+        You'll see a small animation of a block being included in the blockchain, and your
+        credential is updated.
+    </p>
+    <h2>Simple block explorer</h2>
+    <p>
+        The user interface also contains a very simple block explorer at the bottom.
+        Click on the block <code>Latest blocks</code> and then on the block to the right.
+        You can see the creation date of the block, and links to the previous blocks.
+        In the lower part, click on <code>ByzCoin Body</code>, and you'll the instruction in the block
+        representing your change of name.
+        One of the standalone features of ByzCoin are the multilevel links, which you can see
+        as blue rectangles in the <code>BackwardLinks</code> and <code>ForwardLinks</code> fields.
+        This allows for very fast catchup mechanisms and very thin clients.
+    </p>
+    <h2>Creating a new User</h2>
+    <p>
+        Let's create a second credential and move tokens between the two.
+        Switch to the <a href="/login/admin/contacts">Contacts Tab</a> and click on <code>Create Contact</code>.
+        Give it an alias and choose <code>Admin</code> for the <code>Default view</code>, then click
+        on <code>Create</code>.
+        Once the animation with the block adding finishes, open the <code>New User Signup</code> link in a
+        <code>Private Navigation Tab</code>.
+        It is important not to open the link in the main browser, else it will overwrite your
+        credential, and you will have no possibility to recover it - besides starting from scratch
+        as described <a href="/index.html">in the main document</a>.
+        Confirm by clicking on <code>Register User</code> and <code>Start Demonstrator</code>.
+    </p>
+    <p>
+        Now you have two credentials open: your original credential, and the one in the private
+        navigation.
+        In your main credential, click on the <code>Transfer</code> link next to the name of the new
+        credential you just created.
+        Enter a number between 1 and 100 to transfer some tokens to the new credential.
+        When confirming with <code>Transfer</code>, once the animation is done, you see the
+        <code>Memory</code> field of the new credential updating with the number of tokens you
+        transferred.
+        You can also look at this transaction in the blockchain explorer at the bottom of the page.
+    </p>
+</div>
+</body>
+</html>
