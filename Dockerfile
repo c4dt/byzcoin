@@ -15,7 +15,7 @@ RUN cd scmgr && go build -ldflags="$LDFLAGS" .
 WORKDIR /byzcoin
 RUN cp  /byzcoin/pkg/cothority/bcadmin /byzcoin/pkg/cothority/phapp \
         /byzcoin/pkg/cothority/scmgr/scmgr /byzcoin
-COPY docker/byzcoin.sh setup_demo_chain.sh ./
+COPY docker/byzcoin.sh archive/setup_demo_chain.sh ./
 RUN ./setup_demo_chain.sh
 
 FROM node:12 as builder-omniledger
@@ -45,7 +45,7 @@ COPY --from=builder-byzcoin /byzcoin/nodes/config.toml .
 
 FROM lipanski/docker-static-website:latest as web
 #FROM python:latest
-COPY httpd.conf index.html paper.min.css ./
+COPY archive/* ./
 COPY --from=builder-omniledger /omniledger/webapp/www/ login/
 COPY --from=builder-olexplorer /ol-explorer/www/ ol-explorer/
 COPY --from=builder-columbus /columbus/ columbus/

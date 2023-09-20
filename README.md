@@ -2,14 +2,24 @@
 
 This repo has been archived and is no longer supporter.
 You can however run this as a demo to run on your local machine.
-To run the demo, download the repo and run the `docker-compose.yaml` file.
+To run the demo, download the repo and run the `docker-compose.yaml` file:
+
+```bash
+git clone https://github.com/c4dt/byzcoin
+cd byzcoin
+docker compose up -d
+open http://localhost:8080
+```
+
 Then point your browser to http://localhost:8080
 The upcoming page gives a short summary of the different tools available
 to interact with the byzcoin-blockchain.
 The following tools are incorporated:
 
 - ByzCoin itself, running 4 nodes locally
-- [OmniLedger](https://) login tool
+- [OmniLedger](https://github.com/c4dt/omniledger) credential management tool
+- [OL-explorer](https://github.com/c4dt/ol-explorer) a programmatic blockchain explorer
+- [Columbus](https://github.com/c4dt/columbus-united) a GUI blockchain explorer
 
 If you have any questions, or remarks, don't hesitate to reach out to
 us by [c4dt-services@listes.epfl.ch](mailto:c4dt-services@listes.epfl.ch)
