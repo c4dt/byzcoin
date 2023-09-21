@@ -3,3 +3,4 @@
   - make it so that it doesn't break with a second sign up
   - "Overwrite User" - "Keep Existing" - should go back to /login
   - In the best case, with an already signed up user, it should just go to /login
+- Set up LTS

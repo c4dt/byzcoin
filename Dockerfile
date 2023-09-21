@@ -40,7 +40,7 @@ RUN npm run bundle
 COPY --from=builder-byzcoin /byzcoin/nodes/config.toml assets/config.toml
 
 FROM scratch as setup_log
-COPY --from=builder-byzcoin /byzcoin/login.txt .
+COPY --from=builder-byzcoin /byzcoin/signup.link .
 COPY --from=builder-byzcoin /byzcoin/nodes/config.toml .
 
 FROM lipanski/docker-static-website:latest as web
@@ -49,7 +49,7 @@ COPY archive/* ./
 COPY --from=builder-omniledger /omniledger/webapp/www/ login/
 COPY --from=builder-olexplorer /ol-explorer/www/ ol-explorer/
 COPY --from=builder-columbus /columbus/ columbus/
-COPY --from=builder-byzcoin /byzcoin/login.txt login.txt
+COPY --from=builder-byzcoin /byzcoin/signup.link signup.link
 
 FROM debian:bookworm-slim as byzcoin
 
