@@ -7,37 +7,7 @@
 
 
     <link rel='stylesheet' href='paper.min.css'>
-    <script>
-      document.addEventListener('DOMContentLoaded', (event) => {
-        const url = "login.txt"
-        fetch(url)
-        .then( r => r.text() )
-        .then( data =>
-             document.getElementById('login').innerHTML = `<a href="${data}">Sign Up</a>`
-        )
-      });
-
-      function setDarkMode(d){
-        var html = document.documentElement;
-        html.className = d ? 'dark' : '';
-        console.log(`HTML is now ${html.className} for ${d}`);
-      }
-
-      setDarkMode(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-        if (event.matches){
-          setDarkMode(true);
-        }
-      });
-      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', event => {
-        if (event.matches){
-          setDarkMode(false);
-        }
-      });
-
-
-    </script>
+    <script type="text/javascript" src="script.js"></script>
 </head>
 
 <body>
@@ -51,7 +21,7 @@
     <p>
         As a first step, you need to register your user on the blockchain.
         The docker images for this demo contain already an initialized blockchain, so you can simply use the
-        following link to <span id="login"></span>
+        following link to <span id="signup"></span>
     </p><p>
         By signing up to the local OmniLedger blockchain, a secret key is stored in your browser.
         The new state of the blockchain is also stored in the <code>node/*</code> directories, with one directory for

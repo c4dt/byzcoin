@@ -34,7 +34,7 @@ BC=/$( ls $NODES_DIR/bc*.cfg )
 KEY=/$( ls $NODES_DIR/key*.cfg )
 URL=http://localhost:8080/login/register/device
 ./phapp user "$BC" "$KEY" $URL demo | tee login.tmp
-tail -n 1 login.tmp | sed -e "s/.*is: //" > login.txt
+tail -n 1 login.tmp | sed -e "s/.*is: //" > signup.link
 rm login.tmp
 
 # Create configuration files

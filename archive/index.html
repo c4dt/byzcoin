@@ -7,38 +7,7 @@
 
 
     <link rel='stylesheet' href='paper.min.css'>
-    <script>
-      document.addEventListener('DOMContentLoaded', (event) => {
-        const url = "login.txt"
-        fetch(url)
-        .then( r => r.text() )
-        .then( data =>
-             document.getElementById('login').innerHTML = `<a href="${data}">Login</a>`
-        )
-      });
-
-      function setDarkMode(d){
-        var html = document.documentElement;
-        html.className = d ? 'dark' : '';
-        console.log(`HTML is now ${html.className} for ${d}`);
-      }
-
-      setDarkMode(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
-        if (event.matches){
-          setDarkMode(true);
-        }
-      });
-      window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', event => {
-        if (event.matches){
-          setDarkMode(false);
-        }
-      });
-
-
-
-    </script>
+    <script type="text/javascript" src="script.js"></script>
 </head>
 
 <body>
@@ -58,7 +27,7 @@
         When you typed <code>docker compose up</code>, four nodes started communicating with each other
         and awaiting commands from a client.
         The first thing you should do is to create a new user connected to the blockchain.
-        To do this, click on the following link: <span id="login"></span>.
+        To do this, click on the following link: <span id="signup"></span>.
         Now you are ready to look at the different services offered by this demo.
     </p>
 
