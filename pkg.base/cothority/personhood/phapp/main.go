@@ -131,6 +131,16 @@ var cmds = cli.Commands{
 		Usage:     "create a new user",
 		ArgsUsage: "bc-xxx.cfg key-xxx.cfg baseURL alias",
 		Action:    createUser,
+		Flags: []cli.Flag{
+			cli.StringFlag{
+				Name:  "ltsid",
+				Usage: "store the ID of the LTS contract to use",
+			},
+			cli.StringFlag{
+				Name:  "ltsx",
+				Usage: "store the public key of the LTS contract",
+			},
+		},
 	},
 	{
 		Name:  "email",
@@ -855,6 +865,29 @@ func createUser(c *cli.Context) error {
 		return xerrors.Errorf("couldn't create user builder: %v", err)
 	}
 	ub.SetView(user.ACVAdmin)
+
+	ltsIDStr := c.String("ltsid")
+	if ltsIDStr != "" {
+		ltsID, err := hex.DecodeString(ltsIDStr)
+		if err != nil {
+			return xerrors.Errorf("While parsing LTSID: %v", err)
+		}
+		ub.SetLtsID(byzcoin.NewInstanceID(ltsID))
+	}
+
+	ltsXStr := c.String("ltsx")
+	if ltsXStr != "" {
+		ltsXBuf, err := hex.DecodeString(ltsXStr)
+		if err != nil {
+			return xerrors.Errorf("While parsing LTSX: %v", err)
+		}
+		ltsX := cothority.Suite.Point()
+		if err := ltsX.UnmarshalBinary(ltsXBuf); err != nil {
+			return xerrors.Errorf("While converting LTSX: %v", err)
+		}
+		ub.SetLtsX(ltsX)
+	}
+
 	newUser, err := ub.CreateFromDarc(cl, cfg.AdminDarc.GetBaseID(), *signer)
 	if err != nil {
 		return xerrors.Errorf("couldn't create user: %v", err)

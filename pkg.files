@@ -19,10 +19,7 @@ cothority/byzcoin/trie
 cothority/byzcoin/viewchange
 cothority/byzcoinx/*.go
 cothority/byzcoinx/*.md
-cothority/calypso/contracts.go
-cothority/calypso/proto.go
-cothority/calypso/struct.go
-cothority/calypso/protocol
+cothority/calypso
 cothority/darc
 cothority/dkg/pedersen
 cothority/messaging

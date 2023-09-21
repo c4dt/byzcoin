@@ -11,10 +11,12 @@ RUN go build -ldflags="$LDFLAGS" ./cmd/full
 WORKDIR /byzcoin/pkg/cothority
 RUN go build -ldflags="$LDFLAGS" ./byzcoin/bcadmin
 RUN go build -ldflags="$LDFLAGS" ./personhood/phapp
+RUN go build -ldflags="$LDFLAGS" ./calypso/csadmin
 RUN cd scmgr && go build -ldflags="$LDFLAGS" .
 WORKDIR /byzcoin
 RUN cp  /byzcoin/pkg/cothority/bcadmin /byzcoin/pkg/cothority/phapp \
-        /byzcoin/pkg/cothority/scmgr/scmgr /byzcoin
+        /byzcoin/pkg/cothority/scmgr/scmgr \
+        /byzcoin/pkg/cothority/csadmin /byzcoin
 COPY docker/byzcoin.sh archive/setup_demo_chain.sh ./
 RUN ./setup_demo_chain.sh
 
@@ -61,7 +63,7 @@ RUN ln -s /byzcoin .local/share/conode
 RUN ln -s /byzcoin .config/conode
 COPY --from=builder-byzcoin /byzcoin/byzcoin /byzcoin/full \
                     /byzcoin/bcadmin /byzcoin/phapp \
-                    /byzcoin/scmgr /root/
+                    /byzcoin/scmgr /byzcoin/csadmin /root/
 COPY --from=builder-byzcoin /byzcoin/nodes/ /root/nodes/
 COPY docker/byzcoin.sh /root/
 

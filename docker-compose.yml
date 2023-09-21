@@ -45,7 +45,7 @@ services:
       - ./nodes/node-4:/byzcoin
     network_mode: "service:node-1"
 
-  login:
+  web:
     image: ghcr.io/c4dt/byzcoin-web:latest
     platform: linux/amd64
     build:
