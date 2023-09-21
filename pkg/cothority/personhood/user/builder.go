@@ -6,9 +6,11 @@ import (
 	"go.dedis.ch/cothority/v3/darc"
 	"go.dedis.ch/cothority/v3/darc/expression"
 	"go.dedis.ch/cothority/v3/personhood/contracts"
+	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/util/random"
 	"go.dedis.ch/protobuf"
 	"golang.org/x/xerrors"
+	"log"
 )
 
 // Builder allows to create a new user either directly from a DARC with
@@ -282,6 +284,20 @@ func (ub *Builder) createCoin(spawnerDarc darc.ID) byzcoin.Instructions {
 func (ub *Builder) SetAlias(alias string) {
 	ub.alias = alias
 	ub.credentialStruct.SetPublic(contracts.APAlias, []byte(alias))
+}
+
+// SetLtsID sets the LTS_ID that the user can use
+func (ub *Builder) SetLtsID(ltsID byzcoin.InstanceID) {
+	ub.credentialStruct.SetConfig(contracts.ACLtsID, ltsID[:])
+}
+
+// SetLtsX sets the public key of the LTS
+func (ub *Builder) SetLtsX(pub kyber.Point) {
+	pubBuf, err := pub.MarshalBinary()
+	if err != nil {
+		log.Panicf("While marshalling point: %v", err)
+	}
+	ub.credentialStruct.SetConfig(contracts.ACLtsX, pubBuf)
 }
 
 // SetCoinID sets the coinID of the user in the credential.
