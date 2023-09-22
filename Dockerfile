@@ -46,7 +46,6 @@ COPY --from=builder-byzcoin /byzcoin/signup.link .
 COPY --from=builder-byzcoin /byzcoin/nodes/config.toml .
 
 FROM lipanski/docker-static-website:latest as web
-#FROM python:latest
 COPY archive/* ./
 COPY --from=builder-omniledger /omniledger/webapp/www/ login/
 COPY --from=builder-olexplorer /ol-explorer/www/ ol-explorer/

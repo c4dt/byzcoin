@@ -1,6 +1,0 @@
-- fix double sign up
-  - check what happens if a browser with already signed up user gets another signup
-    - Asks to overwrite
-  - make it so that it doesn't break with a second sign up
-  - "Overwrite User" - "Keep Existing" - should go back to /login
-  - In the best case, with an already signed up user, it should just go to /login
