@@ -1,6 +1,6 @@
 # Byzcoin node - ARCHIVED
 
-This repo has been archived and is no longer supporter.
+This repo has been archived and is no longer supported.
 You can however run this as a demo to run on your local machine.
 To run the demo, download the repo and run the `docker-compose.yaml` file:
 
@@ -11,7 +11,7 @@ docker compose up -d
 open http://localhost:8080
 ```
 
-Then point your browser to http://localhost:8080
+Then point your browser to http://localhost:8080.
 The upcoming page gives a short summary of the different tools available
 to interact with the byzcoin-blockchain.
 The following tools are incorporated:
